@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#1B3A2F">
+<meta name="theme-color" content="#24382E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,21 +17,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --green:#1B3A2F; --green-2:#2B5244; --cream:#F4EFE6; --paper:#FBF8F2; --rust:#B07A3C;
-    --red:#B3261E; --ink:#1E2420; --muted:#6B706C; --line:#E2DACB; --amber:#C98A1B;
+    --green:#24382E; --green-2:#33503F; --cream:#F4EFE6; --paper:#FBF8F2; --rust:#B24732; --stone:#9C9286;
+    --red:#CB2125; --ink:#1E2420; --muted:#6B706C; --line:#E2DACB; --amber:#C98A1B;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--cream);color:var(--ink);font-family:Manrope,system-ui,sans-serif;font-size:15px;-webkit-text-size-adjust:100%}
   button,input,select,textarea{font:inherit;color:inherit}
-  header{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
-  .top{display:flex;align-items:center;gap:10px}
-  .brand{font-family:Fraunces,serif;font-weight:700;font-size:19px;letter-spacing:.2px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .brand small{font-family:Manrope;font-weight:500;font-size:12px;opacity:.75;margin-left:6px}
-  .iconbtn{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:10px;height:36px;min-width:36px;padding:0 10px;cursor:pointer}
-  .tabs{display:flex;gap:6px;margin-top:10px}
-  .tab{flex:1;background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:10px;padding:7px 0;font-weight:600;cursor:pointer}
-  .tab.on{background:#fff;color:var(--green);border-color:#fff}
-  .filters{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;background:var(--paper);border-bottom:1px solid var(--line);scrollbar-width:none}
+  header{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+  .hin{max-width:1100px;margin:0 auto}
+  .top{display:flex;align-items:center;gap:8px}
+  .brand{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+  .brand img{height:22px;width:auto;display:block;max-width:100%}
+  .brand span{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--stone);border-left:1px solid rgba(255,255,255,.25);padding-left:10px;white-space:nowrap}
+  @media (max-width:420px){ .brand img{height:20px} .brand span{display:none} }
+  @media (min-width:800px){ .brand img{height:26px} }
+  .iconbtn{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:10px;height:34px;min-width:34px;padding:0 9px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:13px}
+  .iconbtn:hover{background:rgba(255,255,255,.2)}
+  .iconbtn svg{width:17px;height:17px;flex:none}
+  .iconbtn .lbl{display:none}
+  @media (min-width:700px){ .iconbtn .lbl{display:inline} }
+  .tabs{display:flex;gap:3px;margin-top:12px;background:rgba(0,0,0,.18);border-radius:12px;padding:3px}
+  .tab{flex:1;background:transparent;border:0;color:rgba(255,255,255,.8);border-radius:9px;padding:8px 0;font-weight:700;font-size:14px;cursor:pointer}
+  .tab.on{background:#fff;color:var(--green);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .filters{display:flex;gap:6px;overflow-x:auto;padding:10px max(14px, calc((100vw - 1100px) / 2 + 12px));background:var(--paper);border-bottom:1px solid var(--line);scrollbar-width:none}
   .filters::-webkit-scrollbar{display:none}
   .chip{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
   .chip .dot{width:9px;height:9px;border-radius:50%}
@@ -42,7 +50,8 @@
   /* Agenda */
   .dayhead{font-family:Fraunces,serif;font-weight:600;font-size:16px;margin:18px 4px 8px;color:var(--green);display:flex;justify-content:space-between;align-items:baseline}
   .dayhead .today{font-family:Manrope;font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:6px;padding:2px 7px}
-  .card{display:flex;background:#fff;border-radius:14px;margin-bottom:8px;overflow:hidden;box-shadow:0 1px 0 var(--line);cursor:pointer}
+  .card{display:flex;background:#fff;border-radius:14px;margin-bottom:8px;overflow:hidden;box-shadow:0 1px 2px rgba(36,56,46,.08),0 0 0 1px rgba(36,56,46,.04);cursor:pointer;transition:transform .08s}
+  .card:active{transform:scale(.99)}
   .card .bar{width:6px;flex:none}
   .card .body{padding:10px 12px;flex:1;min-width:0}
   .card .time{font-size:13px;font-weight:700;color:var(--muted)}
@@ -67,7 +76,7 @@
   .wd{font-size:11px;font-weight:700;text-align:center;color:var(--muted);padding:4px 0}
   .cell{background:#fff;border-radius:8px;min-height:74px;padding:4px;cursor:pointer;overflow:hidden;border:2px solid transparent}
   .cell.out{opacity:.4}
-  .cell.today{border-color:var(--red)}
+  .cell.today .n{background:var(--red);color:#fff;border-radius:999px;display:inline-block;min-width:21px;text-align:center;padding:1px 6px}
   .cell.sel{border-color:var(--green)}
   .cell .n{font-size:12px;font-weight:700;margin-bottom:2px}
   .pill{font-size:10.5px;line-height:1.25;color:#fff;border-radius:4px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -75,6 +84,11 @@
   .pill.cancel{text-decoration:line-through;opacity:.45}
   .more{font-size:10.5px;color:var(--muted);font-weight:700}
   .daypanel{margin-top:14px}
+  .dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+  .dots i{width:7px;height:7px;border-radius:50%;display:block}
+  .dots i.opt{background:#fff !important;border:1.5px solid}
+  .dots i.cancel{opacity:.35}
+  @media (max-width:599px){ .cell{min-height:52px;text-align:center} .cell .n{font-size:13px} .dots{justify-content:center} }
   @media (min-width:800px){ .cell{min-height:110px} .pill{font-size:12px} }
   /* FAB */
   .fab{position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--red);color:#fff;font-size:30px;line-height:58px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;z-index:6}
@@ -134,8 +148,8 @@
   .inl{background:#fff;border-radius:10px;padding:10px;margin-bottom:8px}
   .login{position:fixed;inset:0;background:var(--green);color:#fff;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
   .login.show{display:flex}
-  .login img{width:84px;height:84px;border-radius:20px;margin-bottom:18px}
-  .login h1{font-family:Fraunces,serif;font-size:28px;margin:0 0 6px}
+  .login img{width:min(300px,78vw);height:auto;margin-bottom:14px}
+  .login h1{font-size:12px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;color:var(--stone);margin:0 0 22px}
   .login p{opacity:.8;margin:0 0 26px;max-width:320px}
   .login button{background:#fff;color:var(--green);border:0;border-radius:12px;padding:14px 22px;font-weight:700;font-size:16px;cursor:pointer}
   .login .err{background:rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;margin-bottom:18px;max-width:340px;font-size:14px}
@@ -156,20 +170,20 @@
 </style>
 </head>
 <body>
-<header>
+<header><div class="hin">
   <div class="top">
-    <div class="brand">Republica | 1963<small>Calendar</small></div>
+    <div class="brand"><img src="logo-white.png" alt="Republica | 1963"><span>Calendar</span></div>
     <button class="iconbtn" id="btnToday" title="Azi">Azi</button>
-    <button class="iconbtn" id="btnRefresh" title="Reîncarcă">&#x21bb;</button>
-    <button class="iconbtn userbtn" id="btnInstall" title="Pune aplicația pe ecran" style="display:none">Instalează</button>
-    <button class="iconbtn userbtn" id="btnOut" title="Ieși din cont">Ieși</button>
+    <button class="iconbtn" id="btnRefresh" title="Reîncarcă" aria-label="Reîncarcă"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+    <button class="iconbtn userbtn" id="btnInstall" title="Pune aplicația pe ecran" aria-label="Instalează" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 20h14"/></svg><span class="lbl">Instalează</span></button>
+    <button class="iconbtn userbtn" id="btnOut" title="Ieși din cont" aria-label="Ieși din cont"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span class="lbl">Ieși</span></button>
   </div>
   <div class="tabs">
     <button class="tab on" data-view="agenda">Agendă</button>
     <button class="tab" data-view="luna">Lună</button>
     <button class="tab" data-view="sarcini">Sarcini</button>
   </div>
-</header>
+</div></header>
 <div class="filters" id="filters"></div>
 <main>
   <input class="search" id="q" type="search" placeholder="Caută după titlu, client, note…">
@@ -182,9 +196,9 @@
 <div class="inst" id="inst"></div>
 <div class="loading" id="loading">Se încarcă…</div>
 <div class="login" id="login">
-  <img src="icon-192.png" alt="">
-  <h1>Republica | 1963</h1>
-  <p>Calendarul evenimentelor. Intră cu contul Google pe care l-ai dat pentru echipă.</p>
+  <img src="logo-white.png" alt="Republica | 1963">
+  <h1>Calendar evenimente</h1>
+  <p>Intră cu contul Google pe care l-ai dat pentru echipă.</p>
   <div class="err" id="loginErr" style="display:none"></div>
   <button id="loginBtn">Intră cu Google</button>
 </div>
@@ -397,12 +411,21 @@ function renderMonth() {
   filtered().forEach(e => (byDay[e.data] = byDay[e.data] || []).push(e));
   let h = `<div class="monthnav"><button class="navbtn" id="mPrev">&#8249;</button><h2>${RO_LUNI[m.getMonth()]} ${m.getFullYear()}</h2><button class="navbtn" id="mNext">&#8250;</button></div><div class="grid">`;
   h += RO_ZILE_SC.map(z => `<div class="wd">${z}</div>`).join('');
-  const maxPills = window.innerWidth >= 800 ? 4 : 3;
+  const maxPills = window.innerWidth >= 800 ? 4 : 3, small = window.innerWidth < 600;
+  if (small && !S.selDay && today.slice(0, 7) === iso(first).slice(0, 7)) S.selDay = today;
   for (let i = 0; i < 42; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     const k = iso(d), ev = byDay[k] || [];
     if (i === 35 && d.getMonth() !== m.getMonth()) break;
     h += `<div class="cell ${d.getMonth() !== m.getMonth() ? 'out' : ''} ${k === today ? 'today' : ''} ${k === S.selDay ? 'sel' : ''}" data-day="${k}"><div class="n">${d.getDate()}</div>`;
+    if (small) {
+      if (ev.length) h += '<div class="dots">' + ev.slice(0, 6).map(e => {
+        const c = esc(colorOf(e.spatiu));
+        const cls = e.status === 'Anulat' ? 'cancel' : (e.status === 'Opțiune' ? 'opt' : '');
+        return `<i class="${cls}" style="background:${c};border-color:${c}"></i>`;
+      }).join('') + '</div>';
+      h += '</div>'; continue;
+    }
     ev.slice(0, maxPills).forEach(e => {
       const c = esc(colorOf(e.spatiu));
       const cls = e.status === 'Anulat' ? 'cancel' : (e.status === 'Opțiune' ? 'opt' + (optState(e) === 'expired' ? ' expired' : '') : '');
