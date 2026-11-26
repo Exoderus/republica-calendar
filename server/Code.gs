@@ -8,7 +8,7 @@
  * Implementare: Aplicație web · Execută ca „Eu” · Acces „Oricine”.
  */
 
-const CLIENT_ID = 'PUNE_AICI_CLIENT_ID.apps.googleusercontent.com';
+const CLIENT_ID = '541619680642-c3rufd8rfgg8mtuikvj0218irm9rohsj.apps.googleusercontent.com';
 const SS_ID = '1WC0rnBY_tHXwj_Fxi5X2IucptQx5lWwG92HS9A1a4Pg';
 const SHEET_EV = 'Evenimente';
 const SHEET_LISTE = 'Liste';
