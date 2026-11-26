@@ -20,17 +20,20 @@ const TZ = 'Europe/Bucharest';
 const SPATIU_TOT = 'Toată locația';      // se suprapune cu orice spațiu
 const SPATIU_EXTERN = 'În afara locației'; // nu se suprapune cu nimic
 const STATUS_ANULAT = 'Anulat';
+const STATUS_OPTIUNE = 'Opțiune';   // rezervare temporară, până la confirmare
+const ZILE_OPTIUNE = 3;            // valabilitatea implicită a unei opțiuni, în zile
 
 const COLS = ['id', 'titlu', 'tip', 'spatiu', 'data', 'start', 'sfarsit', 'montaj', 'demontaj',
   'status', 'responsabil', 'client', 'contact', 'participanti', 'valoare', 'avans',
-  'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat'];
+  'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat', 'optiunePana'];
 
 const LABELS = {
   titlu: 'Titlu', tip: 'Tip', spatiu: 'Spațiu', data: 'Data', start: 'Ora început',
   sfarsit: 'Ora sfârșit', montaj: 'Montaj de la', demontaj: 'Demontaj până la', status: 'Status',
   responsabil: 'Responsabil', client: 'Client / partener', contact: 'Contact',
   participanti: 'Participanți estimați', valoare: 'Valoare (lei)', avans: 'Avans (lei)',
-  tehnic: 'Necesar tehnic', bar: 'Bar și consum', note: 'Note'
+  tehnic: 'Necesar tehnic', bar: 'Bar și consum', note: 'Note',
+  optiunePana: 'Opțiune valabilă până la'
 };
 
 const EDITABLE = Object.keys(LABELS);
@@ -244,7 +247,7 @@ function rowToEv_(r) {
   const e = {};
   COLS.forEach((k, i) => {
     let v = r[i];
-    if (k === 'data') v = normDate_(v);
+    if (k === 'data' || k === 'optiunePana') v = normDate_(v);
     else if (['start', 'sfarsit', 'montaj', 'demontaj'].indexOf(k) >= 0) v = normTime_(v);
     else if (NUMERIC.indexOf(k) >= 0) v = (v === '' || v === null) ? '' : Number(String(v).replace(/\s/g, '').replace(',', '.')) || 0;
     else if (v instanceof Date) v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd HH:mm:ss');
@@ -312,6 +315,12 @@ function clean_(input) {
     ev[k] = v;
   });
   ev.data = normDate_(ev.data);
+  // Opțiunea (rezervarea temporară) are mereu o dată de expirare; celelalte statusuri nu
+  if (ev.status === STATUS_OPTIUNE) {
+    ev.optiunePana = normDate_(ev.optiunePana) || addDays_(Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'), ZILE_OPTIUNE);
+  } else {
+    ev.optiunePana = '';
+  }
   ['start', 'sfarsit', 'montaj', 'demontaj'].forEach(k => ev[k] = normTime_(ev[k]));
   return ev;
 }
@@ -341,6 +350,12 @@ function normTime_(v) {
   const m = s.match(/^(\d{1,2})(?:[:.](\d{2}))?$/);
   if (m && Number(m[1]) < 24 && Number(m[2] || 0) < 60) return pad_(m[1]) + ':' + (m[2] || '00');
   return s;
+}
+
+function addDays_(iso, n) {
+  const p = iso.split('-').map(Number);
+  const d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n));
+  return d.getUTCFullYear() + '-' + pad_(d.getUTCMonth() + 1) + '-' + pad_(d.getUTCDate());
 }
 
 function pad_(n) { return ('0' + Number(n)).slice(-2); }
@@ -395,7 +410,7 @@ function findConflicts_(ev, all, excludeIds) {
     (() => { const [os, of] = interval_(o); return os < f && s < of; })()
   ).map(o => ({
     id: o.id, titlu: o.titlu, data: o.data, start: o.start, sfarsit: o.sfarsit,
-    spatiu: o.spatiu, status: o.status, responsabil: o.responsabil
+    spatiu: o.spatiu, status: o.status, responsabil: o.responsabil, optiunePana: o.optiunePana
   }));
 }
 

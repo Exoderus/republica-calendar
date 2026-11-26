@@ -53,6 +53,10 @@
   .b-Opțiune{background:#FBEFD9;color:#8A5A07}
   .b-Confirmat{background:#DDEBE3;color:var(--green)}
   .b-Anulat{background:#EEE;color:#777}
+  .b-exp{background:#F6DAD7;color:var(--red)}
+  .alert{background:#fff;border-left:4px solid var(--red);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:14px;cursor:pointer}
+  .alert b{color:var(--red)}
+  .pill.expired{border-color:var(--red) !important;color:var(--red)}
   .empty{text-align:center;color:var(--muted);padding:40px 10px}
   .linkbtn{display:block;margin:14px auto;background:none;border:1px dashed var(--line);border-radius:10px;padding:9px 14px;color:var(--green);font-weight:600;cursor:pointer}
   /* Luna */
@@ -159,6 +163,21 @@ const parseIso = s => { const p = s.split('-').map(Number); return new Date(p[0]
 const shown = v => String(v == null ? '' : v).replace(/^'/, '');
 function longDate(s) { const d = parseIso(s); return RO_ZILE[d.getDay()] + ', ' + d.getDate() + ' ' + RO_LUNI[d.getMonth()] + ' ' + d.getFullYear(); }
 function shortDate(s) { const d = parseIso(s); return RO_ZILE[d.getDay()].slice(0,3) + ' ' + d.getDate() + ' ' + RO_LUNI[d.getMonth()].slice(0,3); }
+function optState(e) {
+  if (e.status !== 'Opțiune' || !e.optiunePana) return null;
+  const t = S.data.now;
+  if (e.optiunePana < t) return 'expired';
+  if (e.optiunePana === t) return 'today';
+  return 'ok';
+}
+function statusBadge(e) {
+  const st = optState(e);
+  if (st === 'expired') return '<span class="badge b-exp">Opțiune expirată</span>';
+  if (st === 'today') return '<span class="badge b-exp">Opțiune · expiră azi</span>';
+  if (st === 'ok') return '<span class="badge b-Opțiune">Opțiune până ' + esc(shortDate(e.optiunePana)) + '</span>';
+  return '<span class="badge b-' + esc(e.status) + '">' + esc(e.status || '—') + '</span>';
+}
+function addDaysIso(iso, n) { const d = parseIso(iso); d.setDate(d.getDate() + n); return iso && iso.length ? (d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())) : ''; }
 function timeRange(e) { return (e.start || '') + (e.sfarsit ? '–' + e.sfarsit : ''); }
 function colorOf(sp) { const f = S.data.lists.spatii.find(x => x.name === sp); return f ? f.color : '#4A4A4A'; }
 function nameOf(email) { return String(email || '').split('@')[0]; }
@@ -279,7 +298,7 @@ function cardHtml(e) {
   return `<div class="card ${e.status === 'Anulat' ? 'cancel' : ''}" data-id="${esc(e.id)}">
     <div class="bar" style="background:${esc(colorOf(e.spatiu))}"></div>
     <div class="body">
-      <div class="time">${esc(timeRange(e))} · ${esc(e.spatiu)}<span class="badge b-${esc(e.status)}">${esc(e.status || '—')}</span></div>
+      <div class="time">${esc(timeRange(e))} · ${esc(e.spatiu)}${statusBadge(e)}</div>
       <div class="title">${esc(shown(e.titlu))}</div>
       <div class="meta">${esc([e.tip, e.responsabil, shown(e.client)].filter(Boolean).join(' · '))}</div>
     </div></div>`;
@@ -303,6 +322,8 @@ function renderAgenda() {
   const past = all.filter(e => e.data < today);
   const next = all.filter(e => e.data >= today);
   let h = '';
+  const pend = S.data.events.filter(e => { const st = optState(e); return (st === 'expired' || st === 'today') && e.data >= today; });
+  if (pend.length) h += `<div class="alert" id="pendAlert"><b>${pend.length === 1 ? 'O opțiune' : pend.length + ' opțiuni'} de rezervare ${pend.length === 1 ? 'a expirat sau expiră' : 'au expirat sau expiră'} azi.</b> Confirmă clientul sau anulează, ca să eliberezi spațiul.</div>` + pend.map(cardHtml).join('');
   if (past.length) h += `<button class="linkbtn" id="tPast">${S.showPast ? 'Ascunde evenimentele trecute' : 'Arată evenimentele trecute (' + past.length + ')'}</button>`;
   if (S.showPast) h += groupHtml(past.slice().reverse().slice(0, 200).reverse());
   h += next.length ? groupHtml(next) : '<div class="empty">Niciun eveniment programat de azi înainte.</div>';
@@ -328,7 +349,7 @@ function renderMonth() {
     h += `<div class="cell ${d.getMonth() !== m.getMonth() ? 'out' : ''} ${k === today ? 'today' : ''} ${k === S.selDay ? 'sel' : ''}" data-day="${k}"><div class="n">${d.getDate()}</div>`;
     ev.slice(0, maxPills).forEach(e => {
       const c = esc(colorOf(e.spatiu));
-      const cls = e.status === 'Anulat' ? 'cancel' : (e.status === 'Opțiune' ? 'opt' : '');
+      const cls = e.status === 'Anulat' ? 'cancel' : (e.status === 'Opțiune' ? 'opt' + (optState(e) === 'expired' ? ' expired' : '') : '');
       h += `<div class="pill ${cls}" style="background:${c};border-color:${c}">${maxPills > 3 ? esc(e.start) + ' ' : ''}${esc(shown(e.titlu))}</div>`;
     });
     if (ev.length > maxPills) h += `<div class="more">+${ev.length - maxPills}</div>`;
@@ -356,7 +377,7 @@ $('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); };
 
 const FIELDS = [
   ['tip','Tip'],['spatiu','Spațiu'],['data','Data'],['start','Ora început'],['sfarsit','Ora sfârșit'],
-  ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['status','Status'],['responsabil','Responsabil'],
+  ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['status','Status'],['optiunePana','Opțiune valabilă până la'],['responsabil','Responsabil'],
   ['client','Client / partener'],['contact','Contact'],['participanti','Participanți estimați'],
   ['valoare','Valoare (lei)'],['avans','Avans (lei)'],['tehnic','Necesar tehnic'],['bar','Bar și consum'],['note','Note']
 ];
@@ -365,7 +386,7 @@ function openDetail(id) {
   const e = S.data.events.find(x => x.id === id);
   if (!e) return;
   const rows = FIELDS.filter(([k]) => e[k] !== '' && e[k] != null).map(([k, l]) => {
-    let v = k === 'data' ? longDate(e.data) : shown(e[k]);
+    let v = (k === 'data' || k === 'optiunePana') ? longDate(e[k]) : shown(e[k]);
     if (['valoare','avans'].includes(k)) v = Number(e[k]).toLocaleString('ro-RO') + ' lei';
     return `<div>${esc(l)}</div><div>${esc(v)}</div>`;
   }).join('');
@@ -378,7 +399,7 @@ function openDetail(id) {
       <button class="btn sec" id="dClose">Închide</button>
     </div>`);
   $('dEdit').onclick = () => openForm(e);
-  $('dDup').onclick = () => { const c = Object.assign({}, e); delete c.id; c.status = 'Opțiune'; openForm(null, c); };
+  $('dDup').onclick = () => { const c = Object.assign({}, e); delete c.id; c.status = 'Opțiune'; c.optiunePana = ''; openForm(null, c); };
   $('dArch').onclick = () => {
     if (!confirm('Arhivezi „' + shown(e.titlu) + '”? Dispare din calendar, dar rămâne în Sheet.')) return;
     call('archiveEvent', [e.id, e.modificatLa], r => {
@@ -416,6 +437,7 @@ function openForm(e, prefill) {
       <div><label>Tip</label><select id="f_tip">${opts(L.tipuri, v.tip, '—')}</select></div>
       <div><label>Status</label><select id="f_status">${opts(L.statusuri, v.status)}</select></div>
     </div>
+    <div id="optBox"><label>Rezervare temporară valabilă până la</label><input id="f_optiunePana" type="date" value="${f('optiunePana')}"></div>
     <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
     <label>Note</label><textarea id="f_note">${f('note')}</textarea>
     <details ${hasLog ? 'open' : ''}><summary>Client, bani și logistică</summary>
@@ -450,12 +472,22 @@ function openForm(e, prefill) {
     </div>`);
   $('fCancel').onclick = () => isNew ? closeSheet() : openDetail(e.id);
   $('fSave').onclick = () => submit(e, false);
+  bindOptBox();
+}
+function bindOptBox() {
+  const sync = () => {
+    const on = $('f_status').value === 'Opțiune';
+    $('optBox').style.display = on ? '' : 'none';
+    if (on && !$('f_optiunePana').value) $('f_optiunePana').value = addDaysIso(S.data.now, 3);
+  };
+  $('f_status').onchange = sync; sync();
 }
 
 function readForm(e) {
   const o = e ? { id: e.id } : {};
   FIELDS.forEach(([k]) => { const el = $('f_' + k); if (el) o[k] = el.value; });
   o.titlu = $('f_titlu').value;
+  if (o.status !== 'Opțiune') o.optiunePana = '';
   return o;
 }
 
@@ -486,7 +518,7 @@ function submit(e, force) {
 
 function showConflicts(list, e) {
   const saved = submit._last.input;
-  const html = list.map(c => `<div class="conf"><b>${esc(shortDate(c.data))} · ${esc(timeRange(c))}</b> · ${esc(c.spatiu)}<br>${esc(shown(c.titlu))} <span class="badge b-${esc(c.status)}">${esc(c.status)}</span>${c.responsabil ? ' · ' + esc(c.responsabil) : ''}</div>`).join('');
+  const html = list.map(c => `<div class="conf"><b>${esc(shortDate(c.data))} · ${esc(timeRange(c))}</b> · ${esc(c.spatiu)}<br>${esc(shown(c.titlu))} ${statusBadge(c)}${c.responsabil ? ' · ' + esc(c.responsabil) : ''}</div>`).join('');
   const back = $('sheet').innerHTML;
   openSheet(`<h3>Se suprapune cu ${list.length === 1 ? 'un eveniment' : list.length + ' evenimente'}</h3>
     <p style="margin-top:0;color:var(--muted)">În același spațiu și interval (inclusiv montaj și demontaj):</p>${html}
@@ -502,6 +534,7 @@ function restoreForm(html, values, e) {
   if (rp && $('r_mode')) { $('r_mode').value = rp.mode; $('r_count').value = rp.count; }
   $('fCancel').onclick = () => e ? openDetail(e.id) : closeSheet();
   $('fSave').onclick = () => submit(e, false);
+  bindOptBox();
 }
 
 function replaceEvent(ev) {
