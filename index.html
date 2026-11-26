@@ -476,14 +476,21 @@ function durTxt(a, b) {
   let d = y - x; if (d < 0) d += 1440; if (!d) return '';
   return (d >= 60 ? Math.floor(d / 60) + ' h' : '') + (d % 60 ? ' ' + (d % 60) + ' min' : '');
 }
+function occTxt(v) {
+  const a = v.montaj || v.start, b = v.demontaj || v.sfarsit;
+  if (!(v.montaj || v.demontaj) || !a || !b) return '';
+  const tot = durTxt(a, b), pub = durTxt(v.start, v.sfarsit);
+  return tot ? `Sala ocupată ${esc(a)}–${esc(b)}: ${tot}${pub ? ' (cu public ' + pub + ')' : ''}. Se facturează tot intervalul.` : '';
+}
 function montajHtml(e) {
   if (!MONTAJ_KEYS.some(k => e[k] !== '' && e[k] != null)) return '';
   const dm = durTxt(e.montaj, e.start), dd = durTxt(e.sfarsit, e.demontaj);
   const r = [];
   if (e.montaj) r.push(['Montaj', `de la ${esc(e.montaj)}${dm ? ` <span class="hint">(${dm} înainte de început)</span>` : ''}`]);
   if (e.demontaj) r.push(['Demontaj', `până la ${esc(e.demontaj)}${dd ? ` <span class="hint">(${dd} după final)</span>` : ''}`]);
-  r.push(['Deschide', e.deschide ? esc(e.deschide) : '<b style="color:var(--red)">nimeni încă</b>']);
-  r.push(['Închide', e.inchide ? esc(e.inchide) : '<b style="color:var(--red)">nimeni încă</b>']);
+  const occ = occTxt(e); if (occ) r.unshift(['Sala ocupată', `<b>${occ.replace(/^Sala ocupată /, '')}</b>`]);
+  r.push(['Montaj, de la noi', e.deschide ? esc(e.deschide) + ' <span class="hint">deschide, predă echipamentele, supraveghează</span>' : '<b style="color:var(--red)">nimeni încă</b>']);
+  r.push(['Demontaj, de la noi', e.inchide ? esc(e.inchide) + ' <span class="hint">supraveghează, preia echipamentele, închide</span>' : '<b style="color:var(--red)">nimeni încă</b>']);
   if (e.echipOrg) r.push(['Echipamentul lor', esc(e.echipOrg)]);
   if (e.configurare) r.push(['Sala', esc(e.configurare)]);
   if (e.contactTehnic) r.push(['Tehnic organizator', esc(shown(e.contactTehnic))]);
@@ -692,8 +699,8 @@ function openForm(e, prefill) {
       </div>
       <div class="hint" id="durHint"></div>
       <div class="row2">
-        <div><label>Deschide (de la noi)</label><select id="f_deschide">${opts(L.responsabili, v.deschide, '—')}</select></div>
-        <div><label>Închide (de la noi)</label><select id="f_inchide">${opts(L.responsabili, v.inchide, '—')}</select></div>
+        <div><label>Om de la noi la montaj</label><select id="f_deschide">${opts(L.responsabili, v.deschide, '—')}</select></div>
+        <div><label>Om de la noi la demontaj</label><select id="f_inchide">${opts(L.responsabili, v.inchide, '—')}</select></div>
       </div>
       <div class="row2">
         <div><label>Vin cu echipamentul lor?</label><select id="f_echipOrg">${opts(ECHIP_OPTS, v.echipOrg, '—')}</select></div>
@@ -716,7 +723,7 @@ function openForm(e, prefill) {
       <label>Client / partener</label><input id="f_client" value="${f('client')}">
       <label>Contact (nume, telefon, email)</label><input id="f_contact" value="${f('contact')}">
       <div class="row2">
-        <div><label>Valoare (lei)</label><input id="f_valoare" inputmode="decimal" value="${f('valoare')}"></div>
+        <div><label>Valoare (lei)</label><input id="f_valoare" inputmode="decimal" value="${f('valoare')}"><div class="hint" id="occHint2"></div></div>
         <div><label>Avans (lei)</label><input id="f_avans" inputmode="decimal" value="${f('avans')}"></div>
       </div>
       <label>Pachet bar inclus pentru Organizator (lei)</label><input id="f_pachetBar" inputmode="decimal" value="${f('pachetBar')}">
@@ -774,7 +781,9 @@ function bindMods(isNew, v) {
   $('f_participanti').oninput = conc;
   const dur = () => {
     const a = durTxt($('f_montaj').value, $('f_start').value), b = durTxt($('f_sfarsit').value, $('f_demontaj').value);
-    $('durHint').textContent = [a && 'Montaj: ' + a + ' înainte de început', b && 'Demontaj: ' + b + ' după final'].filter(Boolean).join(' · ');
+    const occ = occTxt({ montaj: $('f_montaj').value, demontaj: $('f_demontaj').value, start: $('f_start').value, sfarsit: $('f_sfarsit').value });
+    $('durHint').textContent = [a && 'Montaj: ' + a + ' înainte de început', b && 'Demontaj: ' + b + ' după final', occ].filter(Boolean).join(' · ');
+    if ($('occHint2')) $('occHint2').textContent = occ;
     if (($('f_montaj').value || $('f_demontaj').value) && cb('montaj') && !cb('montaj').checked) { cb('montaj').checked = true; paint(); }
   };
   ['f_montaj','f_demontaj','f_start','f_sfarsit'].forEach(id => $(id).addEventListener('input', dur));
