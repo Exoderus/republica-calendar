@@ -620,7 +620,7 @@ function openForm(e, prefill) {
     <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
     <label>Necesar logistic</label>
     <div class="mods" id="modsBox">${(S.data.modules || []).map(m => `<label class="mod"><input type="checkbox" value="${esc(m.cod)}" ${modsOf(v).includes(m.cod) ? 'checked' : ''}>${esc(m.nume)}</label>`).join('')}</div>
-    <div class="hint">Fiecare bifă creează sarcinile oamenilor implicați. Concession se bifează singur peste ${esc(L.pragConcession)} de spectatori în ${esc(L.spatiuConcession)}.</div>
+    <div class="hint">${(S.data.modules || []).length ? `Fiecare bifă creează sarcinile oamenilor implicați. Concession se bifează singur peste ${esc(L.pragConcession)} de spectatori în ${esc(L.spatiuConcession)}.` : 'Lista de module nu s-a încărcat. Motorul din Apps Script trebuie actualizat.'}</div>
     <div id="barBox"><label>Bar: interval</label><input id="f_barInterval" value="${f('barInterval')}" placeholder="ex. 18:00–23:00"></div>
     <div id="bilBox"><div class="row2"><div><label>Bilete: platformă</label><input id="f_bilPlatforma" value="${f('bilPlatforma')}" placeholder="Eventbook, iaBilet…"></div>
       <div><label>Capacitate</label><input id="f_capacitate" inputmode="numeric" value="${f('capacitate')}"></div></div>
