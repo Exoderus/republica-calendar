@@ -140,6 +140,19 @@
   .login button{background:#fff;color:var(--green);border:0;border-radius:12px;padding:14px 22px;font-weight:700;font-size:16px;cursor:pointer}
   .login .err{background:rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;margin-bottom:18px;max-width:340px;font-size:14px}
   .userbtn{font-size:12px}
+  .inst{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:25;background:var(--green);color:#fff;border-radius:16px;padding:14px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.3);display:none;max-width:520px;margin:0 auto}
+  .inst.show{display:block}
+  .inst h5{margin:0 0 8px;font-family:Fraunces,serif;font-size:18px;display:flex;align-items:center;gap:10px}
+  .inst h5 img{width:34px;height:34px;border-radius:8px}
+  .inst ol{margin:0 0 10px;padding-left:20px;font-size:14px;line-height:1.5}
+  .inst li{margin-bottom:6px}
+  .inst .ic{display:inline-flex;vertical-align:-5px;background:#fff;color:var(--green);border-radius:6px;padding:2px 4px;margin:0 2px}
+  .inst .row{display:flex;gap:8px}
+  .inst button{flex:1;border:0;border-radius:10px;padding:11px;font-weight:700;cursor:pointer}
+  .inst .go{background:#fff;color:var(--green)}
+  .inst .no{background:rgba(255,255,255,.14);color:#fff}
+  .inst .arrow{text-align:center;font-size:26px;line-height:1;margin-top:4px;animation:bob 1.2s infinite}
+  @keyframes bob{50%{transform:translateY(5px)}}
 </style>
 </head>
 <body>
@@ -148,6 +161,7 @@
     <div class="brand">Republica | 1963<small>Calendar</small></div>
     <button class="iconbtn" id="btnToday" title="Azi">Azi</button>
     <button class="iconbtn" id="btnRefresh" title="Reîncarcă">&#x21bb;</button>
+    <button class="iconbtn userbtn" id="btnInstall" title="Pune aplicația pe ecran" style="display:none">Instalează</button>
     <button class="iconbtn userbtn" id="btnOut" title="Ieși din cont">Ieși</button>
   </div>
   <div class="tabs">
@@ -165,6 +179,7 @@
 
 <div class="overlay" id="ov"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
+<div class="inst" id="inst"></div>
 <div class="loading" id="loading">Se încarcă…</div>
 <div class="login" id="login">
   <img src="icon-192.png" alt="">
@@ -784,6 +799,55 @@ $('q').oninput = e => { S.q = e.target.value; render(); };
 setInterval(() => { if (!document.hidden && !$('ov').classList.contains('show')) load(true); }, 120000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.data && !$('ov').classList.contains('show')) load(true); });
 
+
+/* ---------- instalare pe ecranul telefonului ---------- */
+const INST_KEY = 'rcal.inst.later';
+let deferredPrompt = null;
+addEventListener('beforeinstallprompt', ev => { ev.preventDefault(); deferredPrompt = ev; maybeInstall(); });
+addEventListener('appinstalled', () => { $('inst').classList.remove('show'); $('btnInstall').style.display = 'none'; toast('Aplicația e pe ecran'); });
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const ua = navigator.userAgent;
+const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(ua);
+const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Messenger|GSA\//i.test(ua);
+const ICON_SHARE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v8h14v-8"/></svg>';
+const ICON_PLUS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
+const ICON_DOTS = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+function installHtml() {
+  const head = `<h5><img src="icon-192.png" alt="">Pune calendarul pe ecran</h5>`;
+  const btns = (go) => `<div class="row">${go ? `<button class="go" id="instGo">${go}</button>` : ''}<button class="no" id="instNo">Mai târziu</button></div>`;
+  if (inApp) return head + `<ol><li>Linkul s-a deschis în aplicația de mesaje, unde nu se poate instala.</li>
+      <li>Apasă <b>Copiază linkul</b>, deschide <b>${isIOS ? 'Safari' : 'Chrome'}</b> și lipește-l în bara de adrese.</li></ol>` + btns('Copiază linkul');
+  if (deferredPrompt) return head + `<ol><li>Apasă <b>Instalează</b>, apoi confirmă.</li><li>Iconița cu steaua apare pe ecran, ca orice aplicație.</li></ol>` + btns('Instalează');
+  if (isIOS) return head + `<ol>
+      <li>Apasă butonul <span class="ic">${ICON_SHARE}</span> <b>Partajare</b>${/CriOS/.test(ua) ? ', din bara de adrese, sus' : ', jos în bara Safari'}.</li>
+      <li>Derulează și alege <span class="ic">${ICON_PLUS}</span> <b>Adaugă pe ecranul principal</b>.</li>
+      <li>Apasă <b>Adaugă</b>, sus în dreapta. Gata: deschizi calendarul de pe ecran.</li></ol>` + btns(null) + (/CriOS/.test(ua) ? '' : '<div class="arrow">↓</div>');
+  if (isAndroid) return head + `<ol>
+      <li>Apasă meniul <span class="ic">${ICON_DOTS}</span> din dreapta-sus al browserului.</li>
+      <li>Alege <b>Instalează aplicația</b> sau <b>Adaugă pe ecranul de pornire</b>.</li>
+      <li>Confirmă. Iconița cu steaua apare pe ecran.</li></ol>` + btns(null);
+  return head + `<ol><li>În Chrome sau Edge, apasă iconița de instalare din bara de adrese (un monitor cu săgeată) sau meniul ⋮ → <b>Instalează</b>.</li>
+      <li>Pe telefon: deschide același link și urmează pașii care apar.</li></ol>` + btns(null);
+}
+function showInstall() {
+  const box = $('inst');
+  box.innerHTML = installHtml(); box.classList.add('show');
+  $('instNo').onclick = () => { box.classList.remove('show'); store.set(INST_KEY, String(Date.now() + 3 * 86400000)); };
+  const go = $('instGo');
+  if (go) go.onclick = async () => {
+    if (inApp) { try { await navigator.clipboard.writeText(location.origin + location.pathname); toast('Link copiat'); } catch (_) { prompt('Copiază linkul:', location.origin + location.pathname); } return; }
+    if (deferredPrompt) { deferredPrompt.prompt(); const r = await deferredPrompt.userChoice; deferredPrompt = null; box.classList.remove('show'); if (r && r.outcome === 'accepted') $('btnInstall').style.display = 'none'; }
+  };
+}
+function maybeInstall() {
+  if (isStandalone() || !TOKEN) return;
+  $('btnInstall').style.display = '';
+  const later = Number(store.get(INST_KEY) || 0);
+  if ((isIOS || isAndroid || deferredPrompt) && Date.now() > later) showInstall();
+}
+$('btnInstall').onclick = showInstall;
+
 $('btnOut').onclick = () => { if (confirm('Ieși din cont pe acest dispozitiv?')) logout(); };
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
 
@@ -796,6 +860,7 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').ca
     return;
   }
   load(false);
+  setTimeout(maybeInstall, 1500);
 })();
 </script>
 </body>
