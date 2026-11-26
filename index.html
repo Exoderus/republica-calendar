@@ -122,6 +122,8 @@
   .mod input{width:auto;margin:0;accent-color:var(--green)}
   .mod.on{background:#DDEBE3;border-color:#B9D3C4;color:var(--green)}
   .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 12px 12px;margin-top:14px}
+  .boxh{font-family:Fraunces,serif;color:var(--green);font-size:16px;margin:8px 0 0}
   .sec{margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
   .sec h4{font-family:Fraunces,serif;color:var(--green);margin:0 0 8px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
   .sec h4 small{font-family:Manrope;font-size:12px;color:var(--muted);font-weight:600}
@@ -456,13 +458,37 @@ $('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); };
 
 const FIELDS = [
   ['tip','Tip'],['spatiu','Spațiu'],['data','Data'],['start','Ora început'],['sfarsit','Ora sfârșit'],
-  ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['status','Status'],['optiunePana','Opțiune valabilă până la'],['responsabil','Responsabil'],
+  ['status','Status'],['optiunePana','Opțiune valabilă până la'],['responsabil','Responsabil'],
   ['client','Client / partener'],['contact','Contact'],['participanti','Participanți estimați'],
   ['valoare','Valoare (lei)'],['avans','Avans (lei)'],['pachetBar','Pachet bar inclus (lei)'],['barInterval','Bar: interval'],
   ['bilPlatforma','Bilete: platformă'],['bilLink','Bilete: link'],['capacitate','Capacitate'],['bilVandute','Bilete vândute'],
   ['tehnic','Necesar tehnic'],['bar','Bar și consum'],['note','Note'],
-  ['spectatoriReali','Spectatori reali'],['consumBar','Consum bar realizat (lei)'],['feedback','Feedback client']
+  ['spectatoriReali','Spectatori reali'],['consumBar','Consum bar realizat (lei)'],['feedback','Feedback client'],
+  ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['deschide','Deschide la montaj'],['inchide','Închide după demontaj'],
+  ['echipOrg','Vin cu echipamentul lor'],['configurare','Configurare sală'],['contactTehnic','Contact tehnic organizator']
 ];
+const MONTAJ_KEYS = ['montaj','demontaj','deschide','inchide','echipOrg','configurare','contactTehnic'];
+const ECHIP_OPTS = ['Da, tot', 'Parțial', 'Nu, folosesc ce avem'];
+const CONFIG_OPTS = ['Scaune (teatru)', 'Mese (cabaret)', 'În picioare', 'Mixt', 'Altfel (vezi note)'];
+function minOf(t) { const m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; }
+function durTxt(a, b) {
+  const x = minOf(a), y = minOf(b); if (x === null || y === null) return '';
+  let d = y - x; if (d < 0) d += 1440; if (!d) return '';
+  return (d >= 60 ? Math.floor(d / 60) + ' h' : '') + (d % 60 ? ' ' + (d % 60) + ' min' : '');
+}
+function montajHtml(e) {
+  if (!MONTAJ_KEYS.some(k => e[k] !== '' && e[k] != null)) return '';
+  const dm = durTxt(e.montaj, e.start), dd = durTxt(e.sfarsit, e.demontaj);
+  const r = [];
+  if (e.montaj) r.push(['Montaj', `de la ${esc(e.montaj)}${dm ? ` <span class="hint">(${dm} înainte de început)</span>` : ''}`]);
+  if (e.demontaj) r.push(['Demontaj', `până la ${esc(e.demontaj)}${dd ? ` <span class="hint">(${dd} după final)</span>` : ''}`]);
+  r.push(['Deschide', e.deschide ? esc(e.deschide) : '<b style="color:var(--red)">nimeni încă</b>']);
+  r.push(['Închide', e.inchide ? esc(e.inchide) : '<b style="color:var(--red)">nimeni încă</b>']);
+  if (e.echipOrg) r.push(['Echipamentul lor', esc(e.echipOrg)]);
+  if (e.configurare) r.push(['Sala', esc(e.configurare)]);
+  if (e.contactTehnic) r.push(['Tehnic organizator', esc(shown(e.contactTehnic))]);
+  return `<div class="sec"><h4>Montaj și demontaj</h4><div class="kv">${r.map(([a, b]) => `<div>${a}</div><div>${b}</div>`).join('')}</div></div>`;
+}
 const MONEY = ['valoare','avans','pachetBar','consumBar'];
 const lei = n => (Number(n) || 0).toLocaleString('ro-RO') + ' lei';
 function modsOf(e) { return String(e.module || '').split(',').map(x => x.trim()).filter(Boolean); }
@@ -475,7 +501,7 @@ function mergeById(arr, items) { (items || []).forEach(it => { const i = arr.fin
 function openDetail(id) {
   const e = S.data.events.find(x => x.id === id);
   if (!e) return;
-  const rows = FIELDS.filter(([k]) => e[k] !== '' && e[k] != null).map(([k, l]) => {
+  const rows = FIELDS.filter(([k]) => !MONTAJ_KEYS.includes(k) && e[k] !== '' && e[k] != null).map(([k, l]) => {
     let v = (k === 'data' || k === 'optiunePana') ? longDate(e[k]) : shown(e[k]);
     if (MONEY.includes(k)) v = lei(e[k]);
     return `<div>${esc(l)}</div><div>${esc(v)}</div>`;
@@ -511,6 +537,7 @@ function dossierHtml(e) {
   const done = tasks.filter(t => t.stare === 'Gata').length;
   const rider = riderOf(e.id);
   let h = '';
+  h += montajHtml(e);
   h += `<div class="sec"><h4>Necesar logistic <small><a href="#" id="modsEdit">modifică</a></small></h4><div class="mods" id="modsView" style="cursor:pointer">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('') || '<span class="mod">Nimic bifat. Apasă ca să alegi.</span>'}</div></div>`;
   h += `<div class="sec"><h4>Sarcini <small>${done} din ${tasks.length} gata</small></h4>`;
   h += tasks.map(t => taskHtml(t, false)).join('') || '<div class="hint">Nicio sarcină încă. Bifează necesarul logistic (Editează) sau adaugă una de mână.</div>';
@@ -642,7 +669,7 @@ function openForm(e, prefill) {
   const v = Object.assign({ status: 'Opțiune', data: S.selDay || S.data.now }, prefill || {}, e || {});
   const L = S.data.lists;
   const f = k => esc(shown(v[k]));
-  const hasLog = ['montaj','demontaj','participanti','client','contact','valoare','avans','tehnic','bar'].some(k => v[k] !== '' && v[k] != null);
+  const hasLog = ['participanti','client','contact','valoare','avans','tehnic','bar'].some(k => v[k] !== '' && v[k] != null);
   openSheet(`<h3>${isNew ? 'Eveniment nou' : 'Editează evenimentul'}</h3>
     <label>Titlu *</label><input id="f_titlu" value="${f('titlu')}" placeholder="ex. Concert Compact">
     <div class="row2">
@@ -656,6 +683,23 @@ function openForm(e, prefill) {
     <div class="row2">
       <div><label>Tip</label><select id="f_tip">${opts(L.tipuri, v.tip, '—')}</select></div>
       <div><label>Status</label><select id="f_status">${opts(L.statusuri, v.status)}</select></div>
+    </div>
+    <div class="box">
+      <div class="boxh">Montaj și demontaj</div>
+      <div class="row2">
+        <div><label>Vin la montaj de la</label><input id="f_montaj" type="time" value="${f('montaj')}"></div>
+        <div><label>Demontaj gata până la</label><input id="f_demontaj" type="time" value="${f('demontaj')}"></div>
+      </div>
+      <div class="hint" id="durHint"></div>
+      <div class="row2">
+        <div><label>Deschide (de la noi)</label><select id="f_deschide">${opts(L.responsabili, v.deschide, '—')}</select></div>
+        <div><label>Închide (de la noi)</label><select id="f_inchide">${opts(L.responsabili, v.inchide, '—')}</select></div>
+      </div>
+      <div class="row2">
+        <div><label>Vin cu echipamentul lor?</label><select id="f_echipOrg">${opts(ECHIP_OPTS, v.echipOrg, '—')}</select></div>
+        <div><label>Configurare sală</label><select id="f_configurare">${opts(CONFIG_OPTS, v.configurare, '—')}</select></div>
+      </div>
+      <label>Contact tehnic organizator (nume, telefon)</label><input id="f_contactTehnic" value="${f('contactTehnic')}" placeholder="omul lor de sunet / lumini">
     </div>
     <div id="optBox"><label>Rezervare temporară valabilă până la</label><input id="f_optiunePana" type="date" value="${f('optiunePana')}"></div>
     <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
@@ -676,10 +720,6 @@ function openForm(e, prefill) {
         <div><label>Avans (lei)</label><input id="f_avans" inputmode="decimal" value="${f('avans')}"></div>
       </div>
       <label>Pachet bar inclus pentru Organizator (lei)</label><input id="f_pachetBar" inputmode="decimal" value="${f('pachetBar')}">
-      <div class="row2">
-        <div><label>Montaj de la</label><input id="f_montaj" type="time" value="${f('montaj')}"></div>
-        <div><label>Demontaj până la</label><input id="f_demontaj" type="time" value="${f('demontaj')}"></div>
-      </div>
       <label>Participanți estimați</label><input id="f_participanti" inputmode="numeric" value="${f('participanti')}">
       <label>Necesar tehnic</label><textarea id="f_tehnic">${f('tehnic')}</textarea>
       <label>Bar și consum</label><textarea id="f_bar">${f('bar')}</textarea>
@@ -732,6 +772,13 @@ function bindMods(isNew, v) {
     paint(); conc();
   };
   $('f_participanti').oninput = conc;
+  const dur = () => {
+    const a = durTxt($('f_montaj').value, $('f_start').value), b = durTxt($('f_sfarsit').value, $('f_demontaj').value);
+    $('durHint').textContent = [a && 'Montaj: ' + a + ' înainte de început', b && 'Demontaj: ' + b + ' după final'].filter(Boolean).join(' · ');
+    if (($('f_montaj').value || $('f_demontaj').value) && cb('montaj') && !cb('montaj').checked) { cb('montaj').checked = true; paint(); }
+  };
+  ['f_montaj','f_demontaj','f_start','f_sfarsit'].forEach(id => $(id).addEventListener('input', dur));
+  dur();
   $('f_spatiu').onchange = conc;
   paint();
 }

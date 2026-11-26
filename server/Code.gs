@@ -30,7 +30,8 @@ const ZILE_OPTIUNE = 3;            // valabilitatea implicită a unei opțiuni, 
 const COLS = ['id', 'titlu', 'tip', 'spatiu', 'data', 'start', 'sfarsit', 'montaj', 'demontaj',
   'status', 'responsabil', 'client', 'contact', 'participanti', 'valoare', 'avans',
   'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat', 'optiunePana',
-  'module', 'barInterval', 'pachetBar', 'bilPlatforma', 'bilLink', 'capacitate', 'bilVandute', 'spectatoriReali', 'consumBar', 'feedback'];
+  'module', 'barInterval', 'pachetBar', 'bilPlatforma', 'bilLink', 'capacitate', 'bilVandute', 'spectatoriReali', 'consumBar', 'feedback',
+  'deschide', 'inchide', 'echipOrg', 'configurare', 'contactTehnic'];
 
 const LABELS = {
   titlu: 'Titlu', tip: 'Tip', spatiu: 'Spațiu', data: 'Data', start: 'Ora început',
@@ -41,7 +42,9 @@ const LABELS = {
   optiunePana: 'Opțiune valabilă până la', module: 'Module', barInterval: 'Bar: interval',
   pachetBar: 'Pachet bar inclus (lei)', bilPlatforma: 'Bilete: platformă', bilLink: 'Bilete: link',
   capacitate: 'Capacitate', bilVandute: 'Bilete vândute', spectatoriReali: 'Spectatori reali',
-  consumBar: 'Consum bar realizat (lei)', feedback: 'Feedback client'
+  consumBar: 'Consum bar realizat (lei)', feedback: 'Feedback client',
+  deschide: 'Deschide la montaj', inchide: 'Închide după demontaj', echipOrg: 'Vin cu echipamentul lor',
+  configurare: 'Configurare sală', contactTehnic: 'Contact tehnic organizator'
 };
 
 const EDITABLE = Object.keys(LABELS);
@@ -418,7 +421,20 @@ function newSimpleId_(prefix, existing) {
 }
 
 function modsOf_(ev) {
-  return String(ev.module || '').split(',').map(x => x.trim()).filter(Boolean);
+  const m = String(ev.module || '').split(',').map(x => x.trim()).filter(Boolean);
+  // dacă au oră de montaj sau demontaj, cineva trebuie să deschidă și să închidă
+  if ((ev.montaj || ev.demontaj) && m.indexOf('montaj') < 0) m.push('montaj');
+  return m;
+}
+
+/** Responsabilul unei sarcini din șablon: „@câmp” = persoana din acel câmp al evenimentului. */
+function tplResp_(tp, ev) {
+  return tp.responsabil.charAt(0) === '@' ? String(ev[tp.responsabil.slice(1)] || '') : tp.responsabil;
+}
+
+/** Textul sarcinii, cu {montaj}, {demontaj}, {start}, {sfarsit} înlocuite. */
+function tplText_(tp, ev) {
+  return tp.sarcina.replace(/\{(montaj|demontaj|start|sfarsit)\}/g, (_, k) => ev[k] || '?');
 }
 
 /**
@@ -440,11 +456,11 @@ function syncTasks_(pairs) {
     templates.forEach(tp => {
       const want = mods.indexOf(tp.modul) >= 0;
       const t = mine.find(x => x.sablon === tp.cod);
-      const resp = tp.responsabil === '@responsabil' ? (ev.responsabil || '') : tp.responsabil;
+      const resp = tplResp_(tp, ev), text = tplText_(tp, ev);
       const termen = addDays_(ev.data, -tp.zile);
       if (want && !t) {
         const nt = {
-          id: newSimpleId_('T', all.concat(created)), eventId: ev.id, modul: tp.modul, sarcina: tp.sarcina,
+          id: newSimpleId_('T', all.concat(created)), eventId: ev.id, modul: tp.modul, sarcina: text,
           responsabil: resp, zile: tp.zile, termen: termen, stare: T_OPEN, sablon: tp.cod, note: '',
           modificatDe: user, modificatLa: now
         };
@@ -457,9 +473,10 @@ function syncTasks_(pairs) {
       if (!want && t.stare === T_OPEN) { t.stare = T_CANCEL; dirty = true; }
       if (t.stare === T_OPEN) {
         if (t.termen !== termen && prev && prev.data !== ev.data) { t.termen = termen; dirty = true; }
-        if (tp.responsabil === '@responsabil' && prev && prev.responsabil !== ev.responsabil && t.responsabil === (prev.responsabil || '')) {
-          t.responsabil = ev.responsabil || ''; dirty = true;
+        if (tp.responsabil.charAt(0) === '@' && prev && t.responsabil === tplResp_(tp, prev) && t.responsabil !== resp) {
+          t.responsabil = resp; dirty = true;
         }
+        if (tp.sarcina.indexOf('{') >= 0 && t.sarcina !== text) { t.sarcina = text; dirty = true; }
       }
       if (dirty) { t.modificatDe = user; t.modificatLa = now; changed.push(t); }
     });
@@ -575,6 +592,7 @@ function clean_(input) {
     ev.optiunePana = '';
   }
   ['start', 'sfarsit', 'montaj', 'demontaj'].forEach(k => ev[k] = normTime_(ev[k]));
+  ev.module = modsOf_(ev).join(',');
   return ev;
 }
 
