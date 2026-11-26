@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1B3A2F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calendar">
+<title>Republica | 1963 · Calendar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green:#1B3A2F; --green-2:#2B5244; --cream:#F4EFE6; --paper:#FBF8F2; --rust:#B07A3C;
+    --red:#B3261E; --ink:#1E2420; --muted:#6B706C; --line:#E2DACB; --amber:#C98A1B;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--cream);color:var(--ink);font-family:Manrope,system-ui,sans-serif;font-size:15px;-webkit-text-size-adjust:100%}
+  button,input,select,textarea{font:inherit;color:inherit}
+  header{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+  .top{display:flex;align-items:center;gap:10px}
+  .brand{font-family:Fraunces,serif;font-weight:700;font-size:19px;letter-spacing:.2px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand small{font-family:Manrope;font-weight:500;font-size:12px;opacity:.75;margin-left:6px}
+  .iconbtn{background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:10px;height:36px;min-width:36px;padding:0 10px;cursor:pointer}
+  .tabs{display:flex;gap:6px;margin-top:10px}
+  .tab{flex:1;background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:10px;padding:7px 0;font-weight:600;cursor:pointer}
+  .tab.on{background:#fff;color:var(--green);border-color:#fff}
+  .filters{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;background:var(--paper);border-bottom:1px solid var(--line);scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .chip{flex:none;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .chip .dot{width:9px;height:9px;border-radius:50%}
+  .chip.off{opacity:.4}
+  .chip select{border:0;background:transparent;font-weight:600;font-size:13px;padding:0;outline:none}
+  main{max-width:1100px;margin:0 auto;padding:12px 12px 110px}
+  .search{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;margin-bottom:12px}
+  /* Agenda */
+  .dayhead{font-family:Fraunces,serif;font-weight:600;font-size:16px;margin:18px 4px 8px;color:var(--green);display:flex;justify-content:space-between;align-items:baseline}
+  .dayhead .today{font-family:Manrope;font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:6px;padding:2px 7px}
+  .card{display:flex;background:#fff;border-radius:14px;margin-bottom:8px;overflow:hidden;box-shadow:0 1px 0 var(--line);cursor:pointer}
+  .card .bar{width:6px;flex:none}
+  .card .body{padding:10px 12px;flex:1;min-width:0}
+  .card .time{font-size:13px;font-weight:700;color:var(--muted)}
+  .card .title{font-weight:700;font-size:16px;margin:2px 0;overflow-wrap:anywhere}
+  .card .meta{font-size:13px;color:var(--muted)}
+  .card.cancel .title{text-decoration:line-through;color:var(--muted)}
+  .badge{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:2px}
+  .b-Opțiune{background:#FBEFD9;color:#8A5A07}
+  .b-Confirmat{background:#DDEBE3;color:var(--green)}
+  .b-Anulat{background:#EEE;color:#777}
+  .empty{text-align:center;color:var(--muted);padding:40px 10px}
+  .linkbtn{display:block;margin:14px auto;background:none;border:1px dashed var(--line);border-radius:10px;padding:9px 14px;color:var(--green);font-weight:600;cursor:pointer}
+  /* Luna */
+  .monthnav{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 10px}
+  .monthnav h2{font-family:Fraunces,serif;margin:0;font-size:20px;color:var(--green)}
+  .navbtn{border:1px solid var(--line);background:#fff;border-radius:10px;height:36px;min-width:40px;cursor:pointer;font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .wd{font-size:11px;font-weight:700;text-align:center;color:var(--muted);padding:4px 0}
+  .cell{background:#fff;border-radius:8px;min-height:74px;padding:4px;cursor:pointer;overflow:hidden;border:2px solid transparent}
+  .cell.out{opacity:.4}
+  .cell.today{border-color:var(--red)}
+  .cell.sel{border-color:var(--green)}
+  .cell .n{font-size:12px;font-weight:700;margin-bottom:2px}
+  .pill{font-size:10.5px;line-height:1.25;color:#fff;border-radius:4px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill.opt{background:#fff !important;border:1px dashed;color:var(--ink)}
+  .pill.cancel{text-decoration:line-through;opacity:.45}
+  .more{font-size:10.5px;color:var(--muted);font-weight:700}
+  .daypanel{margin-top:14px}
+  @media (min-width:800px){ .cell{min-height:110px} .pill{font-size:12px} }
+  /* FAB */
+  .fab{position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--red);color:#fff;font-size:30px;line-height:58px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;z-index:6}
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(20,28,24,.45);z-index:20;display:none;align-items:flex-end;justify-content:center}
+  .overlay.show{display:flex}
+  .sheet{background:var(--paper);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom))}
+  @media (min-width:700px){ .overlay{align-items:center} .sheet{border-radius:18px} }
+  .sheet h3{font-family:Fraunces,serif;font-size:21px;margin:4px 0 12px;color:var(--green);overflow-wrap:anywhere}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px;font-size:16px}
+  textarea{min-height:70px;resize:vertical}
+  details{margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
+  summary{font-weight:700;color:var(--green);cursor:pointer;padding:6px 0}
+  .actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+  .btn{flex:1;border:0;border-radius:12px;padding:12px 14px;font-weight:700;cursor:pointer;min-width:110px}
+  .btn.pri{background:var(--green);color:#fff}
+  .btn.sec{background:#fff;border:1px solid var(--line)}
+  .btn.warn{background:#fff;border:1px solid #E6C4C1;color:var(--red)}
+  .kv{display:grid;grid-template-columns:130px 1fr;gap:6px 10px;font-size:14px}
+  .kv div:nth-child(odd){color:var(--muted);font-weight:600}
+  .kv div:nth-child(even){white-space:pre-wrap;overflow-wrap:anywhere}
+  .stamp{font-size:12px;color:var(--muted);margin-top:14px}
+  .conf{background:#fff;border-left:4px solid var(--amber);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:14px}
+  .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-weight:600;z-index:30;display:none;max-width:90vw;text-align:center}
+  .loading{position:fixed;inset:0;background:rgba(244,239,230,.7);z-index:40;display:none;align-items:center;justify-content:center;font-weight:700;color:var(--green)}
+  .loading.show{display:flex}
+  .login{position:fixed;inset:0;background:var(--green);color:#fff;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
+  .login.show{display:flex}
+  .login img{width:84px;height:84px;border-radius:20px;margin-bottom:18px}
+  .login h1{font-family:Fraunces,serif;font-size:28px;margin:0 0 6px}
+  .login p{opacity:.8;margin:0 0 26px;max-width:320px}
+  .login button{background:#fff;color:var(--green);border:0;border-radius:12px;padding:14px 22px;font-weight:700;font-size:16px;cursor:pointer}
+  .login .err{background:rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;margin-bottom:18px;max-width:340px;font-size:14px}
+  .userbtn{font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand">Republica | 1963<small>Calendar</small></div>
+    <button class="iconbtn" id="btnToday" title="Azi">Azi</button>
+    <button class="iconbtn" id="btnRefresh" title="Reîncarcă">&#x21bb;</button>
+    <button class="iconbtn userbtn" id="btnOut" title="Ieși din cont">Ieși</button>
+  </div>
+  <div class="tabs">
+    <button class="tab on" data-view="agenda">Agendă</button>
+    <button class="tab" data-view="luna">Lună</button>
+  </div>
+</header>
+<div class="filters" id="filters"></div>
+<main>
+  <input class="search" id="q" type="search" placeholder="Caută după titlu, client, note…">
+  <div id="view"></div>
+</main>
+<button class="fab" id="fab" aria-label="Eveniment nou">+</button>
+
+<div class="overlay" id="ov"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<div class="loading" id="loading">Se încarcă…</div>
+<div class="login" id="login">
+  <img src="icon-192.png" alt="">
+  <h1>Republica | 1963</h1>
+  <p>Calendarul evenimentelor. Intră cu contul Google pe care l-ai dat pentru echipă.</p>
+  <div class="err" id="loginErr" style="display:none"></div>
+  <button id="loginBtn">Intră cu Google</button>
+</div>
+
+<script>
+const RO_ZILE = ['Duminică','Luni','Marți','Miercuri','Joi','Vineri','Sâmbătă'];
+const RO_ZILE_SC = ['L','Ma','Mi','J','V','S','D'];
+const RO_LUNI = ['ianuarie','februarie','martie','aprilie','mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie'];
+const S = {
+  data: null, view: 'agenda', month: null, selDay: null,
+  hiddenSpaces: new Set(), resp: '', showCancelled: true, showPast: false, q: ''
+};
+try { const v = localStorage.getItem('rcal_view'); if (v) S.view = v; } catch (e) {}
+
+/* ---------- utilitare ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => ('0' + n).slice(-2);
+const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const parseIso = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const shown = v => String(v == null ? '' : v).replace(/^'/, '');
+function longDate(s) { const d = parseIso(s); return RO_ZILE[d.getDay()] + ', ' + d.getDate() + ' ' + RO_LUNI[d.getMonth()] + ' ' + d.getFullYear(); }
+function shortDate(s) { const d = parseIso(s); return RO_ZILE[d.getDay()].slice(0,3) + ' ' + d.getDate() + ' ' + RO_LUNI[d.getMonth()].slice(0,3); }
+function timeRange(e) { return (e.start || '') + (e.sfarsit ? '–' + e.sfarsit : ''); }
+function colorOf(sp) { const f = S.data.lists.spatii.find(x => x.name === sp); return f ? f.color : '#4A4A4A'; }
+function nameOf(email) { return String(email || '').split('@')[0]; }
+function toast(msg, ms) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', ms || 2600); }
+function loading(on) { $('loading').classList.toggle('show', !!on); }
+/* ============ CONFIGURARE ============ */
+const CONFIG = {
+  CLIENT_ID: "PUNE_AICI_CLIENT_ID.apps.googleusercontent.com",
+  SERVICE_URL: "PUNE_AICI_LINKUL_EXEC"
+};
+
+/* ---------- autentificare Google (același mecanism ca la aplicația fraților) ---------- */
+const AUTH_KEY = 'rcal.auth', HINT_KEY = 'rcal.hint', STATE_KEY = 'rcal.state', NONCE_KEY = 'rcal.nonce';
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (_) {} }
+};
+function jwtPayload(t) { try { const b = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); return JSON.parse(decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4))))); } catch (_) { return null; } }
+function savedToken() { try { const a = JSON.parse(store.get(AUTH_KEY) || 'null'); if (a && a.exp > Date.now() + 60000) return a.token; } catch (_) {} return null; }
+function redirectUri() { return location.origin + location.pathname; }
+function startLogin(silent) {
+  const state = Math.random().toString(36).slice(2), nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  try { sessionStorage.setItem(STATE_KEY, state); sessionStorage.setItem(NONCE_KEY, nonce); } catch (_) {}
+  const p = new URLSearchParams({ client_id: CONFIG.CLIENT_ID, redirect_uri: redirectUri(), response_type: 'id_token', scope: 'openid email', state, nonce });
+  const hint = store.get(HINT_KEY);
+  if (silent && hint) { p.set('prompt', 'none'); p.set('login_hint', hint); } else p.set('prompt', 'select_account');
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
+}
+function consumeRedirect() {
+  if (!location.hash || location.hash.length < 2) return null;
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (!h.get('id_token') && !h.get('error')) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  let st = null, nonce = null; try { st = sessionStorage.getItem(STATE_KEY); nonce = sessionStorage.getItem(NONCE_KEY); } catch (_) {}
+  if (h.get('error')) return { error: h.get('error') };
+  if (st && h.get('state') !== st) return { error: 'state_mismatch' };
+  const token = h.get('id_token'), pl = jwtPayload(token) || {};
+  if (nonce && pl.nonce && pl.nonce !== nonce) return { error: 'nonce_mismatch' };
+  store.set(AUTH_KEY, JSON.stringify({ token, exp: pl.exp ? pl.exp * 1000 : Date.now() + 3600e3 }));
+  if (pl.email) store.set(HINT_KEY, pl.email);
+  return { token };
+}
+function logout() { [AUTH_KEY, HINT_KEY].forEach(k => store.del(k)); location.reload(); }
+function loginScreen(msg) {
+  loading(false);
+  $('loginErr').style.display = msg ? 'block' : 'none';
+  $('loginErr').textContent = msg || '';
+  $('login').classList.add('show');
+}
+$('loginBtn').onclick = () => startLogin(false);
+
+let TOKEN = null;
+async function api(action, extra) {
+  const pl = jwtPayload(TOKEN) || {};
+  if (!TOKEN || (pl.exp && pl.exp * 1000 < Date.now() + 30000)) { store.del(AUTH_KEY); startLogin(true); throw new Error('expired'); }
+  const r = await fetch(CONFIG.SERVICE_URL, { method: 'POST', body: JSON.stringify(Object.assign({ token: TOKEN, action }, extra || {})) });
+  const j = await r.json();
+  if (j && j.error === 'unauthorized') { store.del(AUTH_KEY); startLogin(true); throw new Error('expired'); }
+  if (j && j.error === 'not_member') { loginScreen('Contul ' + j.email + ' nu are acces la calendar. Cere să fii adăugat în foaia „Echipa”.'); store.del(AUTH_KEY); throw new Error('not_member'); }
+  if (j && j.error && !j.needsConfirm && !j.staleEdit && j.error !== 'server' && typeof j.error === 'string' && j.error.length < 40 && !/ /.test(j.error)) throw new Error(j.error);
+  if (j && j.error === 'server') throw new Error(j.message || 'eroare de server');
+  return j;
+}
+const ACTIONS = {
+  getData: () => api('bootstrap'),
+  saveEvent: (ev, opts) => api('save', { event: ev, opts: opts }),
+  archiveEvent: (id, expectedModified) => api('archive', { id: id, expectedModified: expectedModified })
+};
+function call(fn, args, ok) {
+  loading(true);
+  ACTIONS[fn].apply(null, args || [])
+    .then(r => { loading(false); ok(r); })
+    .catch(err => { loading(false); if (err && (err.message === 'expired' || err.message === 'not_member')) return; toast('Eroare: ' + (err && err.message ? err.message : err) + '. Verifică semnalul și încearcă din nou.', 5000); });
+}
+
+/* ---------- încărcare ---------- */
+function load(silent) {
+  if (silent) {
+    ACTIONS.getData().then(r => { S.data = r; render(); }).catch(() => {});
+  } else {
+    call('getData', [], r => { S.data = r; if (!S.month) { const t = parseIso(r.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); } render(); });
+  }
+}
+
+/* ---------- filtre ---------- */
+function filtered() {
+  const q = S.q.trim().toLowerCase();
+  return S.data.events.filter(e =>
+    !S.hiddenSpaces.has(e.spatiu) &&
+    (!S.resp || e.responsabil === S.resp) &&
+    (S.showCancelled || e.status !== 'Anulat') &&
+    (!q || [e.titlu, e.client, e.contact, e.note, e.tip, e.spatiu, e.responsabil].join(' ').toLowerCase().includes(q))
+  ).sort((a, b) => (a.data + (a.start || '')).localeCompare(b.data + (b.start || '')));
+}
+
+function renderFilters() {
+  const L = S.data.lists;
+  let h = L.spatii.map(s => `<button class="chip ${S.hiddenSpaces.has(s.name) ? 'off' : ''}" data-sp="${esc(s.name)}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.name)}</button>`).join('');
+  h += `<span class="chip"><select id="fResp"><option value="">Toți responsabilii</option>${L.responsabili.map(r => `<option ${S.resp === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></span>`;
+  h += `<button class="chip ${S.showCancelled ? '' : 'off'}" id="fCanc">Anulate</button>`;
+  $('filters').innerHTML = h;
+  $('filters').querySelectorAll('[data-sp]').forEach(b => b.onclick = () => {
+    const n = b.dataset.sp; S.hiddenSpaces.has(n) ? S.hiddenSpaces.delete(n) : S.hiddenSpaces.add(n); render();
+  });
+  $('fResp').onchange = e => { S.resp = e.target.value; render(); };
+  $('fCanc').onclick = () => { S.showCancelled = !S.showCancelled; render(); };
+}
+
+/* ---------- randare ---------- */
+function render() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === S.view));
+  renderFilters();
+  if (S.view === 'luna') renderMonth(); else renderAgenda();
+}
+
+function cardHtml(e) {
+  return `<div class="card ${e.status === 'Anulat' ? 'cancel' : ''}" data-id="${esc(e.id)}">
+    <div class="bar" style="background:${esc(colorOf(e.spatiu))}"></div>
+    <div class="body">
+      <div class="time">${esc(timeRange(e))} · ${esc(e.spatiu)}<span class="badge b-${esc(e.status)}">${esc(e.status || '—')}</span></div>
+      <div class="title">${esc(shown(e.titlu))}</div>
+      <div class="meta">${esc([e.tip, e.responsabil, shown(e.client)].filter(Boolean).join(' · '))}</div>
+    </div></div>`;
+}
+
+function groupHtml(list) {
+  const today = S.data.now;
+  let h = '', cur = '';
+  list.forEach(e => {
+    if (e.data !== cur) { cur = e.data; h += `<div class="dayhead"><span>${esc(longDate(e.data))}</span>${e.data === today ? '<span class="today">Azi</span>' : ''}</div>`; }
+    h += cardHtml(e);
+  });
+  return h;
+}
+
+function bindCards(root) { root.querySelectorAll('.card').forEach(c => c.onclick = () => openDetail(c.dataset.id)); }
+
+function renderAgenda() {
+  const all = filtered();
+  const today = S.data.now;
+  const past = all.filter(e => e.data < today);
+  const next = all.filter(e => e.data >= today);
+  let h = '';
+  if (past.length) h += `<button class="linkbtn" id="tPast">${S.showPast ? 'Ascunde evenimentele trecute' : 'Arată evenimentele trecute (' + past.length + ')'}</button>`;
+  if (S.showPast) h += groupHtml(past.slice().reverse().slice(0, 200).reverse());
+  h += next.length ? groupHtml(next) : '<div class="empty">Niciun eveniment programat de azi înainte.</div>';
+  $('view').innerHTML = h;
+  if ($('tPast')) $('tPast').onclick = () => { S.showPast = !S.showPast; renderAgenda(); };
+  bindCards($('view'));
+}
+
+function renderMonth() {
+  const m = S.month, today = S.data.now;
+  const first = new Date(m.getFullYear(), m.getMonth(), 1);
+  const offset = (first.getDay() + 6) % 7;
+  const start = new Date(first); start.setDate(1 - offset);
+  const byDay = {};
+  filtered().forEach(e => (byDay[e.data] = byDay[e.data] || []).push(e));
+  let h = `<div class="monthnav"><button class="navbtn" id="mPrev">&#8249;</button><h2>${RO_LUNI[m.getMonth()]} ${m.getFullYear()}</h2><button class="navbtn" id="mNext">&#8250;</button></div><div class="grid">`;
+  h += RO_ZILE_SC.map(z => `<div class="wd">${z}</div>`).join('');
+  const maxPills = window.innerWidth >= 800 ? 4 : 3;
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const k = iso(d), ev = byDay[k] || [];
+    if (i === 35 && d.getMonth() !== m.getMonth()) break;
+    h += `<div class="cell ${d.getMonth() !== m.getMonth() ? 'out' : ''} ${k === today ? 'today' : ''} ${k === S.selDay ? 'sel' : ''}" data-day="${k}"><div class="n">${d.getDate()}</div>`;
+    ev.slice(0, maxPills).forEach(e => {
+      const c = esc(colorOf(e.spatiu));
+      const cls = e.status === 'Anulat' ? 'cancel' : (e.status === 'Opțiune' ? 'opt' : '');
+      h += `<div class="pill ${cls}" style="background:${c};border-color:${c}">${maxPills > 3 ? esc(e.start) + ' ' : ''}${esc(shown(e.titlu))}</div>`;
+    });
+    if (ev.length > maxPills) h += `<div class="more">+${ev.length - maxPills}</div>`;
+    h += `</div>`;
+  }
+  h += `</div><div class="daypanel" id="dayPanel"></div>`;
+  $('view').innerHTML = h;
+  $('mPrev').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() - 1, 1); S.selDay = null; renderMonth(); };
+  $('mNext').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() + 1, 1); S.selDay = null; renderMonth(); };
+  $('view').querySelectorAll('.cell').forEach(c => c.onclick = () => { S.selDay = c.dataset.day; renderMonth(); $('dayPanel').scrollIntoView({behavior: 'smooth', block: 'start'}); });
+  if (S.selDay) {
+    const ev = byDay[S.selDay] || [];
+    $('dayPanel').innerHTML = `<div class="dayhead"><span>${esc(longDate(S.selDay))}</span></div>` +
+      (ev.length ? ev.map(cardHtml).join('') : '<div class="empty">Nimic programat.</div>') +
+      `<button class="linkbtn" id="addDay">+ Adaugă eveniment în această zi</button>`;
+    $('addDay').onclick = () => openForm(null, { data: S.selDay });
+    bindCards($('dayPanel'));
+  }
+}
+
+/* ---------- modal ---------- */
+function openSheet(html) { $('sheet').innerHTML = html; $('ov').classList.add('show'); $('sheet').scrollTop = 0; }
+function closeSheet() { $('ov').classList.remove('show'); }
+$('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); };
+
+const FIELDS = [
+  ['tip','Tip'],['spatiu','Spațiu'],['data','Data'],['start','Ora început'],['sfarsit','Ora sfârșit'],
+  ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['status','Status'],['responsabil','Responsabil'],
+  ['client','Client / partener'],['contact','Contact'],['participanti','Participanți estimați'],
+  ['valoare','Valoare (lei)'],['avans','Avans (lei)'],['tehnic','Necesar tehnic'],['bar','Bar și consum'],['note','Note']
+];
+
+function openDetail(id) {
+  const e = S.data.events.find(x => x.id === id);
+  if (!e) return;
+  const rows = FIELDS.filter(([k]) => e[k] !== '' && e[k] != null).map(([k, l]) => {
+    let v = k === 'data' ? longDate(e.data) : shown(e[k]);
+    if (['valoare','avans'].includes(k)) v = Number(e[k]).toLocaleString('ro-RO') + ' lei';
+    return `<div>${esc(l)}</div><div>${esc(v)}</div>`;
+  }).join('');
+  openSheet(`<h3>${esc(shown(e.titlu))}</h3><div class="kv">${rows}</div>
+    <div class="stamp">Adăugat de ${esc(nameOf(e.creatDe))} la ${esc(e.creatLa)}${e.modificatLa && e.modificatLa !== e.creatLa ? '<br>Modificat de ' + esc(nameOf(e.modificatDe)) + ' la ' + esc(e.modificatLa) : ''}<br>ID ${esc(e.id)}</div>
+    <div class="actions">
+      <button class="btn pri" id="dEdit">Editează</button>
+      <button class="btn sec" id="dDup">Duplică</button>
+      <button class="btn warn" id="dArch">Arhivează</button>
+      <button class="btn sec" id="dClose">Închide</button>
+    </div>`);
+  $('dEdit').onclick = () => openForm(e);
+  $('dDup').onclick = () => { const c = Object.assign({}, e); delete c.id; c.status = 'Opțiune'; openForm(null, c); };
+  $('dArch').onclick = () => {
+    if (!confirm('Arhivezi „' + shown(e.titlu) + '”? Dispare din calendar, dar rămâne în Sheet.')) return;
+    call('archiveEvent', [e.id, e.modificatLa], r => {
+      if (r.staleEdit) { replaceEvent(r.current); toast('Între timp evenimentul a fost modificat. Verifică și încearcă din nou.', 4500); openDetail(id); return; }
+      if (r.error) return toast(r.error, 4500);
+      S.data.events = S.data.events.filter(x => x.id !== id); closeSheet(); render(); toast('Arhivat');
+    });
+  };
+  $('dClose').onclick = closeSheet;
+}
+
+function opts(list, val, empty) {
+  return (empty ? `<option value="">${esc(empty)}</option>` : '') +
+    list.map(x => `<option ${x === val ? 'selected' : ''}>${esc(x)}</option>`).join('') +
+    (val && !list.includes(val) ? `<option selected>${esc(val)}</option>` : '');
+}
+
+function openForm(e, prefill) {
+  const isNew = !e;
+  const v = Object.assign({ status: 'Opțiune', data: S.selDay || S.data.now }, prefill || {}, e || {});
+  const L = S.data.lists;
+  const f = k => esc(shown(v[k]));
+  const hasLog = ['montaj','demontaj','participanti','client','contact','valoare','avans','tehnic','bar'].some(k => v[k] !== '' && v[k] != null);
+  openSheet(`<h3>${isNew ? 'Eveniment nou' : 'Editează evenimentul'}</h3>
+    <label>Titlu *</label><input id="f_titlu" value="${f('titlu')}" placeholder="ex. Concert Compact">
+    <div class="row2">
+      <div><label>Data *</label><input id="f_data" type="date" value="${f('data')}"></div>
+      <div><label>Spațiu *</label><select id="f_spatiu">${opts(L.spatii.map(s => s.name), v.spatiu, 'Alege…')}</select></div>
+    </div>
+    <div class="row2">
+      <div><label>Ora început *</label><input id="f_start" type="time" value="${f('start')}"></div>
+      <div><label>Ora sfârșit</label><input id="f_sfarsit" type="time" value="${f('sfarsit')}"></div>
+    </div>
+    <div class="row2">
+      <div><label>Tip</label><select id="f_tip">${opts(L.tipuri, v.tip, '—')}</select></div>
+      <div><label>Status</label><select id="f_status">${opts(L.statusuri, v.status)}</select></div>
+    </div>
+    <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
+    <label>Note</label><textarea id="f_note">${f('note')}</textarea>
+    <details ${hasLog ? 'open' : ''}><summary>Client, bani și logistică</summary>
+      <label>Client / partener</label><input id="f_client" value="${f('client')}">
+      <label>Contact (nume, telefon, email)</label><input id="f_contact" value="${f('contact')}">
+      <div class="row2">
+        <div><label>Valoare (lei)</label><input id="f_valoare" inputmode="decimal" value="${f('valoare')}"></div>
+        <div><label>Avans (lei)</label><input id="f_avans" inputmode="decimal" value="${f('avans')}"></div>
+      </div>
+      <div class="row2">
+        <div><label>Montaj de la</label><input id="f_montaj" type="time" value="${f('montaj')}"></div>
+        <div><label>Demontaj până la</label><input id="f_demontaj" type="time" value="${f('demontaj')}"></div>
+      </div>
+      <label>Participanți estimați</label><input id="f_participanti" inputmode="numeric" value="${f('participanti')}">
+      <label>Necesar tehnic</label><textarea id="f_tehnic">${f('tehnic')}</textarea>
+      <label>Bar și consum</label><textarea id="f_bar">${f('bar')}</textarea>
+    </details>
+    ${isNew ? `<details><summary>Se repetă</summary>
+      <div class="row2">
+        <div><label>Cum</label><select id="r_mode">
+          <option value="">Nu se repetă</option>
+          <option value="saptamanal">Săptămânal</option>
+          <option value="doua">La 2 săptămâni</option>
+          <option value="lunar_zi">Lunar, aceeași dată</option>
+          <option value="lunar_pozitie">Lunar, aceeași zi a săptămânii (ex. prima luni)</option>
+        </select></div>
+        <div><label>De câte ori, în total</label><input id="r_count" type="number" min="1" max="52" value="4"></div>
+      </div></details>` : ''}
+    <div class="actions">
+      <button class="btn pri" id="fSave">${isNew ? 'Adaugă' : 'Salvează'}</button>
+      <button class="btn sec" id="fCancel">Renunță</button>
+    </div>`);
+  $('fCancel').onclick = () => isNew ? closeSheet() : openDetail(e.id);
+  $('fSave').onclick = () => submit(e, false);
+}
+
+function readForm(e) {
+  const o = e ? { id: e.id } : {};
+  FIELDS.forEach(([k]) => { const el = $('f_' + k); if (el) o[k] = el.value; });
+  o.titlu = $('f_titlu').value;
+  return o;
+}
+
+function submit(e, force) {
+  const input = readForm(e);
+  if (!input.titlu.trim()) return toast('Lipsește titlul.');
+  if (!input.data) return toast('Alege data.');
+  if (!input.spatiu) return toast('Alege spațiul.');
+  if (!input.start) return toast('Lipsește ora de început.');
+  const o = { force: force };
+  if (e) o.expectedModified = e.modificatLa;
+  else if ($('r_mode') && $('r_mode').value) o.repeat = { mode: $('r_mode').value, count: Number($('r_count').value) || 1 };
+  submit._last = { e: e, input: input, repeat: o.repeat };
+  call('saveEvent', [input, o], r => {
+    if (r.error) return toast(r.error, 4500);
+    if (r.staleEdit) {
+      replaceEvent(r.current);
+      toast('Între timp ' + nameOf(r.current.modificatDe) + ' a modificat evenimentul. Am încărcat versiunea nouă; refă modificarea.', 6000);
+      return openForm(r.current);
+    }
+    if (r.needsConfirm) return showConflicts(r.conflicts, e);
+    if (r.unchanged) { toast('Nimic de salvat'); return openDetail(e.id); }
+    r.events.forEach(replaceEvent);
+    closeSheet(); render();
+    toast(r.events.length > 1 ? 'Am adăugat ' + r.events.length + ' evenimente' : (e ? 'Salvat' : 'Adăugat'));
+  });
+}
+
+function showConflicts(list, e) {
+  const saved = submit._last.input;
+  const html = list.map(c => `<div class="conf"><b>${esc(shortDate(c.data))} · ${esc(timeRange(c))}</b> · ${esc(c.spatiu)}<br>${esc(shown(c.titlu))} <span class="badge b-${esc(c.status)}">${esc(c.status)}</span>${c.responsabil ? ' · ' + esc(c.responsabil) : ''}</div>`).join('');
+  const back = $('sheet').innerHTML;
+  openSheet(`<h3>Se suprapune cu ${list.length === 1 ? 'un eveniment' : list.length + ' evenimente'}</h3>
+    <p style="margin-top:0;color:var(--muted)">În același spațiu și interval (inclusiv montaj și demontaj):</p>${html}
+    <div class="actions"><button class="btn sec" id="cBack">Înapoi la formular</button><button class="btn pri" id="cForce">Salvează oricum</button></div>`);
+  $('cBack').onclick = () => { restoreForm(back, saved, e); };
+  $('cForce').onclick = () => { restoreForm(back, saved, e); submit(e, true); };
+}
+
+function restoreForm(html, values, e) {
+  $('sheet').innerHTML = html;
+  Object.keys(values).forEach(k => { const el = $('f_' + k); if (el) el.value = shown(values[k]); });
+  const rp = submit._last.repeat;
+  if (rp && $('r_mode')) { $('r_mode').value = rp.mode; $('r_count').value = rp.count; }
+  $('fCancel').onclick = () => e ? openDetail(e.id) : closeSheet();
+  $('fSave').onclick = () => submit(e, false);
+}
+
+function replaceEvent(ev) {
+  const i = S.data.events.findIndex(x => x.id === ev.id);
+  if (ev.arhivat === 'DA') { if (i >= 0) S.data.events.splice(i, 1); return; }
+  if (i >= 0) S.data.events[i] = ev; else S.data.events.push(ev);
+}
+
+/* ---------- evenimente UI ---------- */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => { S.view = t.dataset.view; try { localStorage.setItem('rcal_view', S.view); } catch (e) {} render(); });
+$('fab').onclick = () => openForm(null);
+$('btnRefresh').onclick = () => load(false);
+$('btnToday').onclick = () => {
+  const t = parseIso(S.data.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); S.selDay = S.data.now; render();
+  if (S.view === 'agenda') window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+$('q').oninput = e => { S.q = e.target.value; render(); };
+// Reîmprospătare automată la 2 minute, doar cât timp pagina e vizibilă și nu e deschis un formular
+setInterval(() => { if (!document.hidden && !$('ov').classList.contains('show')) load(true); }, 120000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.data && !$('ov').classList.contains('show')) load(true); });
+
+$('btnOut').onclick = () => { if (confirm('Ieși din cont pe acest dispozitiv?')) logout(); };
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+
+(function boot() {
+  const r = consumeRedirect();
+  TOKEN = (r && r.token) || savedToken();
+  if (!TOKEN) {
+    if (!r && store.get(HINT_KEY)) { startLogin(true); return; }
+    loginScreen(r && r.error && r.error !== 'access_denied' && r.error !== 'interaction_required' && r.error !== 'login_required' ? 'Autentificarea nu a reușit. Încearcă din nou.' : '');
+    return;
+  }
+  load(false);
+})();
+</script>
+</body>
+</html>
