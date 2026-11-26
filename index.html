@@ -179,7 +179,7 @@ const store = {
 };
 function jwtPayload(t) { try { const b = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); return JSON.parse(decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4))))); } catch (_) { return null; } }
 function savedToken() { try { const a = JSON.parse(store.get(AUTH_KEY) || 'null'); if (a && a.exp > Date.now() + 60000) return a.token; } catch (_) {} return null; }
-function redirectUri() { return location.origin + location.pathname; }
+function redirectUri() { return location.origin + location.pathname.replace(/index\.html$/, ''); }
 function startLogin(silent) {
   const state = Math.random().toString(36).slice(2), nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
   try { sessionStorage.setItem(STATE_KEY, state); sessionStorage.setItem(NONCE_KEY, nonce); } catch (_) {}
