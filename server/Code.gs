@@ -26,12 +26,14 @@ const SPATIU_EXTERN = 'În afara locației'; // nu se suprapune cu nimic
 const STATUS_ANULAT = 'Anulat';
 const STATUS_OPTIUNE = 'Opțiune';   // rezervare temporară, până la confirmare
 const ZILE_OPTIUNE = 3;            // valabilitatea implicită a unei opțiuni, în zile
+const ZILE_GRATIE = 2;             // după atâtea zile de la expirare, opțiunea se anulează singură
+const APP_URL = 'https://exoderus.github.io/republica-calendar/';
 
 const COLS = ['id', 'titlu', 'tip', 'spatiu', 'data', 'start', 'sfarsit', 'montaj', 'demontaj',
   'status', 'responsabil', 'client', 'contact', 'participanti', 'valoare', 'avans',
   'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat', 'optiunePana',
   'module', 'barInterval', 'pachetBar', 'bilPlatforma', 'bilLink', 'capacitate', 'bilVandute', 'spectatoriReali', 'consumBar', 'feedback',
-  'deschide', 'inchide', 'echipOrg', 'configurare', 'contactTehnic'];
+  'deschide', 'inchide', 'echipOrg', 'configurare', 'contactTehnic', 'acces', 'proba', 'montajData'];
 
 const LABELS = {
   titlu: 'Titlu', tip: 'Tip', spatiu: 'Spațiu', data: 'Data', start: 'Ora început',
@@ -44,7 +46,8 @@ const LABELS = {
   capacitate: 'Capacitate', bilVandute: 'Bilete vândute', spectatoriReali: 'Spectatori reali',
   consumBar: 'Consum bar realizat (lei)', feedback: 'Feedback client',
   deschide: 'Deschide la montaj', inchide: 'Închide după demontaj', echipOrg: 'Vin cu echipamentul lor',
-  configurare: 'Configurare sală', contactTehnic: 'Contact tehnic organizator'
+  configurare: 'Configurare sală', contactTehnic: 'Contact tehnic organizator',
+  acces: 'Acces public de la', proba: 'Probă de sunet', montajData: 'Montaj din ziua'
 };
 
 const EDITABLE = Object.keys(LABELS);
@@ -434,7 +437,10 @@ function tplResp_(tp, ev) {
 
 /** Textul sarcinii, cu {montaj}, {demontaj}, {start}, {sfarsit} înlocuite. */
 function tplText_(tp, ev) {
-  return tp.sarcina.replace(/\{(montaj|demontaj|start|sfarsit)\}/g, (_, k) => ev[k] || '?');
+  const val = k => k === 'montaj' && ev.montaj && ev.montajData ? fmtZi_(ev.montajData) + ' ' + ev.montaj : (ev[k] || '');
+  return tp.sarcina
+    .replace(/\s*\(\{(montaj|demontaj|start|sfarsit|acces|proba)\}\)/g, (m, k) => val(k) ? ' (' + val(k) + ')' : '')
+    .replace(/\{(montaj|demontaj|start|sfarsit|acces|proba)\}/g, (_, k) => val(k) || '?');
 }
 
 /**
@@ -591,7 +597,9 @@ function clean_(input) {
   } else {
     ev.optiunePana = '';
   }
-  ['start', 'sfarsit', 'montaj', 'demontaj'].forEach(k => ev[k] = normTime_(ev[k]));
+  ['start', 'sfarsit', 'montaj', 'demontaj', 'acces', 'proba'].forEach(k => ev[k] = normTime_(ev[k]));
+  ev.montajData = normDate_(ev.montajData);
+  if (ev.montajData && (ev.montajData >= ev.data || !ev.montaj)) ev.montajData = ''; // doar o zi anterioară, și doar cu oră
   ev.module = modsOf_(ev).join(',');
   return ev;
 }
@@ -601,6 +609,7 @@ function validate_(ev) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ev.data)) return 'Data nu e validă.';
   if (!ev.spatiu) return 'Alege spațiul.';
   if (!ev.start) return 'Lipsește ora de început.';
+  if (ev.montajData && daysBetween_(ev.montajData, ev.data) > 7) return 'Montajul poate începe cu cel mult 7 zile înainte.';
   return '';
 }
 
@@ -652,16 +661,31 @@ function toMin_(t) {
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 }
 
-/** Intervalul ocupat: de la montaj (sau start) până la demontaj (sau sfârșit; implicit start + 2h). */
+/** Ziua ca număr (zile de la 1970), ca să comparăm intervale peste mai multe zile. */
+function dayNum_(d) {
+  const p = String(d || '').split('-').map(Number);
+  return p.length === 3 ? Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5) : 0;
+}
+function daysBetween_(a, b) { return dayNum_(b) - dayNum_(a); }
+
+/**
+ * Intervalul ocupat, în minute absolute: de la montaj (sau start) până la demontaj
+ * (sau sfârșit; implicit start + 2h). Montajul poate fi într-o zi anterioară,
+ * iar demontajul poate trece de miezul nopții.
+ */
 function interval_(e) {
+  const base = dayNum_(e.data) * 1440;
+  let st = toMin_(e.start); if (st === null) st = 0;
   let s = toMin_(e.montaj);
-  if (s === null) s = toMin_(e.start);
-  if (s === null) s = 0;
+  let sBase = base;
+  if (s === null) s = st;
+  else if (e.montajData) sBase = dayNum_(e.montajData) * 1440;
+  else if (s > st) s = st; // montaj trecut după start în aceeași zi: îl tratăm ca start
   let f = toMin_(e.demontaj);
   if (f === null) f = toMin_(e.sfarsit);
-  if (f === null) f = Math.min(s + 120, 24 * 60);
-  if (f <= s) f += 24 * 60; // trece de miezul nopții
-  return [s, f];
+  if (f === null) f = Math.min(st + 120, 24 * 60);
+  if (f <= st) f += 24 * 60; // trece de miezul nopții
+  return [sBase + s, base + f];
 }
 
 function spacesClash_(a, b) {
@@ -676,7 +700,7 @@ function findConflicts_(ev, all, excludeIds) {
     excludeIds.indexOf(o.id) < 0 &&
     o.arhivat !== 'DA' &&
     o.status !== STATUS_ANULAT &&
-    o.data === ev.data &&
+    Math.abs(daysBetween_(o.data, ev.data)) <= 8 &&
     spacesClash_(o.spatiu, ev.spatiu) &&
     (() => { const [os, of] = interval_(o); return os < f && s < of; })()
   ).map(o => ({
@@ -731,4 +755,121 @@ function repeatDates_(first, repeat) {
     return out;
   }
   return [first];
+}
+
+
+/* ---------- Zilnic: anulare opțiuni expirate + rezumat pe email ---------- */
+
+/** Rulează o singură dată din editor: pornește rularea zilnică (în jur de 7:30). */
+function setupTriggers() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'dailyRun').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('dailyRun').timeBased().atHour(7).nearMinute(30).everyDays(1).inTimezone(TZ).create();
+  return 'Rularea zilnică e pornită.';
+}
+
+/**
+ * Pentru test: trimite rezumatul de azi al unei persoane (implicit Ioana) la adresa lui Mihai din Echipa,
+ * fără să anuleze nimic și fără să scrie altcuiva.
+ */
+function testDigest(nume) {
+  const team = team_();
+  const mihai = team.find(p => p.name === 'Mihai');
+  if (!mihai) return 'Mihai nu are adresă în Echipa.';
+  return dailyRun({ onlyTo: nume || 'Ioana', previewTo: mihai.email, dryCancel: true });
+}
+
+function dailyRun(o) {
+  o = (o && o.onlyTo !== undefined) ? o : {};
+  USER_ = { email: 'automat', name: 'Calendar (automat)' };
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const cancelled = o.dryCancel ? [] : cancelExpiredOptions_(today);
+  return sendDigests_(today, cancelled, o.onlyTo || '', o.previewTo || '');
+}
+
+/** Opțiunile expirate de mai mult de ZILE_GRATIE zile trec la „Anulat”. */
+function cancelExpiredOptions_(today) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const all = readAll_(false);
+    const sh = ss_().getSheetByName(SHEET_EV);
+    const limit = addDays_(today, -ZILE_GRATIE);
+    const out = [];
+    all.filter(e => e.arhivat !== 'DA' && e.status === STATUS_OPTIUNE && e.optiunePana && e.optiunePana < limit)
+      .forEach(cur => {
+        const note = (cur.note ? cur.note + '\n' : '') + 'Opțiune expirată pe ' + fmtZi_(cur.optiunePana) + ', anulată automat pe ' + fmtZi_(today) + '.';
+        const merged = Object.assign({}, cur, { status: STATUS_ANULAT, optiunePana: '', note: note, modificatDe: USER_.name, modificatLa: stamp_() });
+        writeRow_(sh, cur._row, merged);
+        log_(USER_.name, 'Anulat automat', cur.id, cur.titlu, 'Opțiune expirată pe ' + cur.optiunePana);
+        syncTasks_([{ ev: merged, prev: cur }]);
+        out.push(merged);
+      });
+    return out;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function team_() {
+  const sh = ss_().getSheetByName(SHEET_TEAM);
+  return sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 3).getDisplayValues()
+    .filter(r => String(r[0]).trim() && /@/.test(r[1]) && String(r[2]).trim().toLowerCase() === 'activ')
+    .map(r => ({ name: String(r[0]).trim(), email: String(r[1]).trim() }));
+}
+
+const ZILE_SC_ = ['dum', 'lun', 'mar', 'mie', 'joi', 'vin', 'sâm'];
+const LUNI_SC_ = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'noi', 'dec'];
+function fmtZi_(d) {
+  const p = String(d || '').split('-').map(Number);
+  if (p.length !== 3) return String(d || '');
+  const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  return ZILE_SC_[dt.getUTCDay()] + ' ' + p[2] + ' ' + LUNI_SC_[p[1] - 1];
+}
+function h_(s) { return String(s == null ? '' : s).replace(/^'/, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function sendDigests_(today, cancelled, onlyName, previewTo) {
+  const events = readAll_(true).filter(e => e.arhivat !== 'DA');
+  const byId = {}; events.forEach(e => byId[e.id] = e);
+  const tasks = readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM).filter(t => t.stare === T_OPEN && byId[t.eventId] && byId[t.eventId].status !== STATUS_ANULAT);
+  const tomorrow = addDays_(today, 1);
+  const live = events.filter(e => e.status !== STATUS_ANULAT);
+  let sent = 0;
+  team_().forEach(p => {
+    if (onlyName && p.name !== onlyName) return;
+    const mine = tasks.filter(t => t.responsabil === p.name && t.termen && t.termen <= tomorrow)
+      .sort((a, b) => a.termen.localeCompare(b.termen));
+    const late = mine.filter(t => t.termen < today), now = mine.filter(t => t.termen >= today);
+    const roles = e => [e.responsabil === p.name && 'responsabil', e.deschide === p.name && 'montaj', e.inchide === p.name && 'demontaj'].filter(Boolean);
+    const myEv = live.filter(e => (e.data === today || e.data === tomorrow || e.montajData === today || e.montajData === tomorrow) && roles(e).length)
+      .sort((a, b) => (a.data + a.start).localeCompare(b.data + b.start));
+    const opts = live.filter(e => e.status === STATUS_OPTIUNE && e.responsabil === p.name && e.optiunePana && e.optiunePana <= tomorrow);
+    const lipsa = live.filter(e => e.responsabil === p.name && (e.montaj || e.demontaj) && (!e.deschide || !e.inchide) && e.data >= today && e.data <= addDays_(today, 7));
+    const anulate = cancelled.filter(e => e.responsabil === p.name);
+    if (!late.length && !now.length && !myEv.length && !opts.length && !lipsa.length && !anulate.length) return;
+
+    const evLine = e => `<b>${h_(e.titlu)}</b> · ${fmtZi_(e.data)}, ${h_(e.start)}${e.sfarsit ? '–' + h_(e.sfarsit) : ''} · ${h_(e.spatiu)}`;
+    const taskLine = t => `${h_(t.sarcina)}<br><span style="color:#6B706C">${byId[t.eventId] ? evLine(byId[t.eventId]) : ''} · termen ${fmtZi_(t.termen)}</span>`;
+    const sec = (title, items, color) => items.length ? `<h3 style="font:600 16px Georgia,serif;color:${color || '#24382E'};margin:22px 0 8px">${title}</h3><ul style="padding-left:18px;margin:0">${items.map(x => `<li style="margin:0 0 8px">${x}</li>`).join('')}</ul>` : '';
+    let html = `<div style="font:14px/1.5 Arial,sans-serif;color:#1E2420;max-width:560px">`;
+    html += `<p style="margin:0 0 4px">Bună dimineața, ${h_(p.name)}.</p><p style="margin:0;color:#6B706C">Ce ai de urmărit azi, ${fmtZi_(today)}, în calendarul Republica | 1963.</p>`;
+    html += sec('Întârziate' + (late.length > 15 ? ' (primele 15 din ' + late.length + ')' : ''), late.slice(0, 15).map(taskLine), '#CB2125');
+    html += sec('De făcut azi și mâine', now.map(taskLine));
+    html += sec('Evenimentele tale, azi și mâine', myEv.map(e => {
+      const r = roles(e), extra = [];
+      if (r.indexOf('montaj') >= 0 && e.montaj) extra.push('montaj de la ' + (e.montajData ? fmtZi_(e.montajData) + ' ' : '') + h_(e.montaj));
+      if (r.indexOf('demontaj') >= 0 && e.demontaj) extra.push('demontaj până la ' + h_(e.demontaj));
+      if (e.proba) extra.push('probă de sunet ' + h_(e.proba));
+      if (e.acces) extra.push('acces public ' + h_(e.acces));
+      return evLine(e) + `<br><span style="color:#6B706C">Tu: ${r.join(', ')}${extra.length ? ' · ' + extra.join(' · ') : ''}</span>`;
+    }));
+    html += sec('Opțiuni care expiră', opts.map(e => evLine(e) + `<br><span style="color:#6B706C">valabilă până ${fmtZi_(e.optiunePana)}. Confirmă clientul sau anulează; după ${ZILE_GRATIE} zile se anulează singură.</span>`), '#B24732');
+    html += sec('Lipsește omul de la montaj sau demontaj', lipsa.map(e => evLine(e) + `<br><span style="color:#6B706C">${!e.deschide ? 'montaj: nimeni ales' : ''}${!e.deschide && !e.inchide ? ' · ' : ''}${!e.inchide ? 'demontaj: nimeni ales' : ''}</span>`), '#B24732');
+    html += sec('Anulate automat azi-noapte', anulate.map(e => evLine(e) + `<br><span style="color:#6B706C">opțiunea a expirat și n-a fost confirmată</span>`), '#6B706C');
+    html += `<p style="margin:26px 0 0"><a href="${APP_URL}" style="background:#24382E;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">Deschide calendarul</a></p></div>`;
+    const parts = [late.length && late.length + ' întârziate', now.length && now.length + ' de făcut', myEv.length && (myEv.length === 1 ? '1 eveniment' : myEv.length + ' evenimente'),
+      opts.length && (opts.length === 1 ? '1 opțiune expiră' : opts.length + ' opțiuni expiră'), anulate.length && anulate.length + ' anulate automat', lipsa.length && 'lipsesc oameni la montaj'].filter(Boolean);
+    MailApp.sendEmail({ to: previewTo || p.email, subject: (previewTo ? '[Test, rezumatul lui ' + p.name + '] ' : '') + 'Calendar Republica: ' + (parts.join(', ') || 'rezumatul zilei'), htmlBody: html, name: 'Calendar Republica | 1963' });
+    sent++;
+  });
+  return { sent: sent, cancelled: cancelled.length };
 }

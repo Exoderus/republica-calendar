@@ -330,7 +330,9 @@ function load(silent) {
 /* ---------- filtre ---------- */
 function filtered() {
   const q = S.q.trim().toLowerCase();
-  return S.data.events.filter(e =>
+  const evs = S.data.events.concat(S.data.events.filter(e => e.montajData && e.montaj && e.montajData < e.data && e.status !== 'Anulat')
+    .map(e => Object.assign({}, e, { _montaj: e.data, data: e.montajData, start: e.montaj, sfarsit: '', titlu: 'Montaj: ' + shown(e.titlu) })));
+  return evs.filter(e =>
     !S.hiddenSpaces.has(e.spatiu) &&
     (!S.resp || e.responsabil === S.resp) &&
     (S.showCancelled || e.status !== 'Anulat') &&
@@ -362,10 +364,10 @@ function cardHtml(e) {
   return `<div class="card ${e.status === 'Anulat' ? 'cancel' : ''}" data-id="${esc(e.id)}">
     <div class="bar" style="background:${esc(colorOf(e.spatiu))}"></div>
     <div class="body">
-      <div class="time">${esc(timeRange(e))} · ${esc(e.spatiu)}${statusBadge(e)}</div>
+      <div class="time">${esc(e._montaj ? 'de la ' + e.start : timeRange(e))} · ${esc(e.spatiu)}${e._montaj ? ' <span class="badge b-Opțiune">Montaj pentru ' + esc(shortDay(e._montaj)) + '</span>' : statusBadge(e)}</div>
       <div class="title">${esc(shown(e.titlu))}</div>
       <div class="meta">${esc([e.tip, e.responsabil, shown(e.client)].filter(Boolean).join(' · '))}</div>
-      ${progHtml(e)}
+      ${e._montaj ? '' : progHtml(e)}
     </div></div>`;
 }
 
@@ -465,9 +467,13 @@ const FIELDS = [
   ['tehnic','Necesar tehnic'],['bar','Bar și consum'],['note','Note'],
   ['spectatoriReali','Spectatori reali'],['consumBar','Consum bar realizat (lei)'],['feedback','Feedback client'],
   ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['deschide','Deschide la montaj'],['inchide','Închide după demontaj'],
-  ['echipOrg','Vin cu echipamentul lor'],['configurare','Configurare sală'],['contactTehnic','Contact tehnic organizator']
+  ['echipOrg','Vin cu echipamentul lor'],['configurare','Configurare sală'],['contactTehnic','Contact tehnic organizator'],
+  ['montajData','Montaj din ziua'],['proba','Probă de sunet'],['acces','Acces public de la']
 ];
-const MONTAJ_KEYS = ['montaj','demontaj','deschide','inchide','echipOrg','configurare','contactTehnic'];
+const MONTAJ_KEYS = ['montaj','demontaj','deschide','inchide','echipOrg','configurare','contactTehnic','montajData','proba','acces'];
+function dayN(d) { const p = String(d || '').split('-').map(Number); return p.length === 3 ? Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5) : 0; }
+function durMin(m) { m = Math.round(m); if (m <= 0) return ''; const h = Math.floor(m / 60), mi = m % 60; return [h && h + ' h', mi && mi + ' min'].filter(Boolean).join(' '); }
+function shortDay(d) { const p = String(d || '').split('-').map(Number); if (p.length !== 3) return ''; const dt = new Date(p[0], p[1] - 1, p[2]); return RO_ZILE[dt.getDay()].slice(0, 3).toLowerCase() + ' ' + p[2] + ' ' + RO_LUNI[p[1] - 1].slice(0, 3); }
 const ECHIP_OPTS = ['Da, tot', 'Parțial', 'Nu, folosesc ce avem'];
 const CONFIG_OPTS = ['Scaune (teatru)', 'Mese (cabaret)', 'În picioare', 'Mixt', 'Altfel (vezi note)'];
 function minOf(t) { const m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; }
@@ -478,15 +484,20 @@ function durTxt(a, b) {
 }
 function occTxt(v) {
   const a = v.montaj || v.start, b = v.demontaj || v.sfarsit;
-  if (!(v.montaj || v.demontaj) || !a || !b) return '';
-  const tot = durTxt(a, b), pub = durTxt(v.start, v.sfarsit);
-  return tot ? `Sala ocupată ${esc(a)}–${esc(b)}: ${tot}${pub ? ' (cu public ' + pub + ')' : ''}. Se facturează tot intervalul.` : '';
+  if (!(v.montaj || v.demontaj) || !a || !b || minOf(a) === null || minOf(b) === null || minOf(v.start) === null) return '';
+  const md = v.montajData && v.montaj && v.montajData < v.data ? v.montajData : '';
+  const s = (md ? dayN(md) - dayN(v.data) : 0) * 1440 + minOf(a);
+  let f = minOf(b); if (f <= minOf(v.start)) f += 1440;
+  const tot = durMin(f - s), pub = durTxt(v.start, v.sfarsit);
+  return tot ? `Sala ocupată ${md ? shortDay(md) + ' ' + a + ' – ' + shortDay(v.data) + ' ' + b : a + '–' + b}: ${tot}${pub ? ' (cu public ' + pub + ')' : ''}. Se facturează tot intervalul.` : '';
 }
 function montajHtml(e) {
   if (!MONTAJ_KEYS.some(k => e[k] !== '' && e[k] != null)) return '';
-  const dm = durTxt(e.montaj, e.start), dd = durTxt(e.sfarsit, e.demontaj);
+  const dm = e.montajData && e.montaj ? '' : durTxt(e.montaj, e.start), dd = durTxt(e.sfarsit, e.demontaj);
   const r = [];
-  if (e.montaj) r.push(['Montaj', `de la ${esc(e.montaj)}${dm ? ` <span class="hint">(${dm} înainte de început)</span>` : ''}`]);
+  if (e.montaj) r.push(['Montaj', `${e.montajData ? 'din ' + esc(shortDay(e.montajData)) + ', ' : ''}de la ${esc(e.montaj)}${dm ? ` <span class="hint">(${dm} înainte de început)</span>` : ''}`]);
+  if (e.proba) r.push(['Probă de sunet', esc(e.proba)]);
+  if (e.acces) r.push(['Acces public', 'de la ' + esc(e.acces)]);
   if (e.demontaj) r.push(['Demontaj', `până la ${esc(e.demontaj)}${dd ? ` <span class="hint">(${dd} după final)</span>` : ''}`]);
   const occ = occTxt(e); if (occ) r.unshift(['Sala ocupată', `<b>${occ.replace(/^Sala ocupată /, '')}</b>`]);
   r.push(['Montaj, de la noi', e.deschide ? esc(e.deschide) + ' <span class="hint">deschide, predă echipamentele, supraveghează</span>' : '<b style="color:var(--red)">nimeni încă</b>']);
@@ -692,10 +703,18 @@ function openForm(e, prefill) {
       <div><label>Status</label><select id="f_status">${opts(L.statusuri, v.status)}</select></div>
     </div>
     <div class="box">
-      <div class="boxh">Montaj și demontaj</div>
+      <div class="boxh">Orar tehnic, montaj și demontaj</div>
       <div class="row2">
         <div><label>Vin la montaj de la</label><input id="f_montaj" type="time" value="${f('montaj')}"></div>
+        <div><label>Montaj din ziua (dacă e mai devreme)</label><input id="f_montajData" type="date" value="${f('montajData')}"></div>
+      </div>
+      <div class="row2">
+        <div><label>Probă de sunet</label><input id="f_proba" type="time" value="${f('proba')}"></div>
+        <div><label>Acces public de la</label><input id="f_acces" type="time" value="${f('acces')}"></div>
+      </div>
+      <div class="row2">
         <div><label>Demontaj gata până la</label><input id="f_demontaj" type="time" value="${f('demontaj')}"></div>
+        <div></div>
       </div>
       <div class="hint" id="durHint"></div>
       <div class="row2">
@@ -780,13 +799,14 @@ function bindMods(isNew, v) {
   };
   $('f_participanti').oninput = conc;
   const dur = () => {
-    const a = durTxt($('f_montaj').value, $('f_start').value), b = durTxt($('f_sfarsit').value, $('f_demontaj').value);
-    const occ = occTxt({ montaj: $('f_montaj').value, demontaj: $('f_demontaj').value, start: $('f_start').value, sfarsit: $('f_sfarsit').value });
+    const md = $('f_montajData').value && $('f_montajData').value < $('f_data').value;
+    const a = md ? '' : durTxt($('f_montaj').value, $('f_start').value), b = durTxt($('f_sfarsit').value, $('f_demontaj').value);
+    const occ = occTxt({ montaj: $('f_montaj').value, demontaj: $('f_demontaj').value, start: $('f_start').value, sfarsit: $('f_sfarsit').value, data: $('f_data').value, montajData: $('f_montajData').value });
     $('durHint').textContent = [a && 'Montaj: ' + a + ' înainte de început', b && 'Demontaj: ' + b + ' după final', occ].filter(Boolean).join(' · ');
     if ($('occHint2')) $('occHint2').textContent = occ;
     if (($('f_montaj').value || $('f_demontaj').value) && cb('montaj') && !cb('montaj').checked) { cb('montaj').checked = true; paint(); }
   };
-  ['f_montaj','f_demontaj','f_start','f_sfarsit'].forEach(id => $(id).addEventListener('input', dur));
+  ['f_montaj','f_demontaj','f_start','f_sfarsit','f_montajData','f_data'].forEach(id => $(id).addEventListener('input', dur));
   dur();
   $('f_spatiu').onchange = conc;
   paint();
