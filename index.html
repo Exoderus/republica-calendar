@@ -111,6 +111,7 @@
   .sec{margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
   .sec h4{font-family:Fraunces,serif;color:var(--green);margin:0 0 8px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
   .sec h4 small{font-family:Manrope;font-size:12px;color:var(--muted);font-weight:600}
+  .sec h4 small a{color:var(--green)}
   .task{display:flex;gap:10px;align-items:flex-start;background:#fff;border-radius:10px;padding:9px 10px;margin-bottom:6px}
   .task input[type=checkbox]{width:22px;height:22px;flex:none;margin:1px 0 0;accent-color:var(--green)}
   .task .tt{flex:1;min-width:0;font-size:14px}
@@ -472,7 +473,7 @@ function dossierHtml(e) {
   const done = tasks.filter(t => t.stare === 'Gata').length;
   const rider = riderOf(e.id);
   let h = '';
-  h += `<div class="sec"><h4>Necesar logistic <small>${mods.length ? '' : 'nimic bifat'}</small></h4><div class="mods">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('')}</div></div>`;
+  h += `<div class="sec"><h4>Necesar logistic <small><a href="#" id="modsEdit">modifică</a></small></h4><div class="mods" id="modsView" style="cursor:pointer">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('') || '<span class="mod">Nimic bifat. Apasă ca să alegi.</span>'}</div></div>`;
   h += `<div class="sec"><h4>Sarcini <small>${done} din ${tasks.length} gata</small></h4>`;
   h += tasks.map(t => taskHtml(t, false)).join('') || '<div class="hint">Nicio sarcină încă. Bifează necesarul logistic (Editează) sau adaugă una de mână.</div>';
   h += `<div id="taskAddBox"></div><button class="mini" id="taskAddBtn">+ Sarcină</button></div>`;
@@ -528,6 +529,8 @@ function bindTaskChecks(root, after) {
 
 function bindDossier(e) {
   const reopen = () => { render(); openDetail(e.id); };
+  const toEdit = ev => { ev.preventDefault(); openForm(e); setTimeout(() => { const b = $('modsBox'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); };
+  $('modsEdit').onclick = toEdit; $('modsView').onclick = toEdit;
   bindTaskChecks($('sheet'), reopen);
   $('taskAddBtn').onclick = () => {
     $('taskAddBtn').style.display = 'none';
