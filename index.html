@@ -103,6 +103,34 @@
   .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-weight:600;z-index:30;display:none;max-width:90vw;text-align:center}
   .loading{position:fixed;inset:0;background:rgba(244,239,230,.7);z-index:40;display:none;align-items:center;justify-content:center;font-weight:700;color:var(--green)}
   .loading.show{display:flex}
+  .mods{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .mod{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 11px;font-size:13px;font-weight:600;cursor:pointer;user-select:none;margin:0;color:var(--ink)}
+  .mod input{width:auto;margin:0;accent-color:var(--green)}
+  .mod.on{background:#DDEBE3;border-color:#B9D3C4;color:var(--green)}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  .sec{margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
+  .sec h4{font-family:Fraunces,serif;color:var(--green);margin:0 0 8px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+  .sec h4 small{font-family:Manrope;font-size:12px;color:var(--muted);font-weight:600}
+  .task{display:flex;gap:10px;align-items:flex-start;background:#fff;border-radius:10px;padding:9px 10px;margin-bottom:6px}
+  .task input[type=checkbox]{width:22px;height:22px;flex:none;margin:1px 0 0;accent-color:var(--green)}
+  .task .tt{flex:1;min-width:0;font-size:14px}
+  .task .tt b{font-weight:600}
+  .task .tm{font-size:12px;color:var(--muted)}
+  .task .tm a{color:var(--green)}
+  .task.done .tt b{text-decoration:line-through;color:var(--muted)}
+  .task.late .tm .d{color:var(--red);font-weight:700}
+  .task.cancel{opacity:.45}
+  .mini{border:1px dashed var(--line);background:none;border-radius:10px;padding:8px 12px;color:var(--green);font-weight:700;cursor:pointer;font-size:13px}
+  .rid{background:#fff;border-radius:10px;padding:9px 10px;margin-bottom:6px;font-size:14px;cursor:pointer}
+  .rid .top{display:flex;justify-content:space-between;gap:8px}
+  .rid .sub{font-size:12px;color:var(--muted)}
+  .rid.cancel{opacity:.45;text-decoration:line-through}
+  .tot{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px;background:#fff;border-radius:10px;padding:10px 12px}
+  .tot .neg{color:var(--red)}
+  .tot .sum{font-weight:800;border-top:1px solid var(--line);padding-top:6px}
+  .prog{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin-top:5px;background:#EEF2EF;color:var(--green)}
+  .prog.late{background:#F6DAD7;color:var(--red)}
+  .inl{background:#fff;border-radius:10px;padding:10px;margin-bottom:8px}
   .login{position:fixed;inset:0;background:var(--green);color:#fff;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center}
   .login.show{display:flex}
   .login img{width:84px;height:84px;border-radius:20px;margin-bottom:18px}
@@ -124,6 +152,7 @@
   <div class="tabs">
     <button class="tab on" data-view="agenda">Agendă</button>
     <button class="tab" data-view="luna">Lună</button>
+    <button class="tab" data-view="sarcini">Sarcini</button>
   </div>
 </header>
 <div class="filters" id="filters"></div>
@@ -245,7 +274,10 @@ async function api(action, extra) {
 const ACTIONS = {
   getData: () => api('bootstrap'),
   saveEvent: (ev, opts) => api('save', { event: ev, opts: opts }),
-  archiveEvent: (id, expectedModified) => api('archive', { id: id, expectedModified: expectedModified })
+  archiveEvent: (id, expectedModified) => api('archive', { id: id, expectedModified: expectedModified }),
+  taskUpdate: (id, patch) => api('task', { id: id, patch: patch }),
+  taskAdd: (task) => api('task_add', { task: task }),
+  riderSave: (row) => api('rider_save', { row: row })
 };
 function call(fn, args, ok) {
   loading(true);
@@ -291,7 +323,7 @@ function renderFilters() {
 function render() {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === S.view));
   renderFilters();
-  if (S.view === 'luna') renderMonth(); else renderAgenda();
+  if (S.view === 'luna') renderMonth(); else if (S.view === 'sarcini') renderTasks(); else renderAgenda();
 }
 
 function cardHtml(e) {
@@ -301,7 +333,15 @@ function cardHtml(e) {
       <div class="time">${esc(timeRange(e))} · ${esc(e.spatiu)}${statusBadge(e)}</div>
       <div class="title">${esc(shown(e.titlu))}</div>
       <div class="meta">${esc([e.tip, e.responsabil, shown(e.client)].filter(Boolean).join(' · '))}</div>
+      ${progHtml(e)}
     </div></div>`;
+}
+
+function progHtml(e) {
+  const ts = tasksOf(e.id).filter(t => t.stare !== 'Anulată');
+  if (!ts.length) return '';
+  const done = ts.filter(t => t.stare === 'Gata').length, late = ts.filter(taskLate).length;
+  return `<span class="prog ${late ? 'late' : ''}">Sarcini ${done}/${ts.length}${late ? ' · ' + late + ' întârziate' : ''}</span>`;
 }
 
 function groupHtml(list) {
@@ -379,18 +419,30 @@ const FIELDS = [
   ['tip','Tip'],['spatiu','Spațiu'],['data','Data'],['start','Ora început'],['sfarsit','Ora sfârșit'],
   ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['status','Status'],['optiunePana','Opțiune valabilă până la'],['responsabil','Responsabil'],
   ['client','Client / partener'],['contact','Contact'],['participanti','Participanți estimați'],
-  ['valoare','Valoare (lei)'],['avans','Avans (lei)'],['tehnic','Necesar tehnic'],['bar','Bar și consum'],['note','Note']
+  ['valoare','Valoare (lei)'],['avans','Avans (lei)'],['pachetBar','Pachet bar inclus (lei)'],['barInterval','Bar: interval'],
+  ['bilPlatforma','Bilete: platformă'],['bilLink','Bilete: link'],['capacitate','Capacitate'],['bilVandute','Bilete vândute'],
+  ['tehnic','Necesar tehnic'],['bar','Bar și consum'],['note','Note'],
+  ['spectatoriReali','Spectatori reali'],['consumBar','Consum bar realizat (lei)'],['feedback','Feedback client']
 ];
+const MONEY = ['valoare','avans','pachetBar','consumBar'];
+const lei = n => (Number(n) || 0).toLocaleString('ro-RO') + ' lei';
+function modsOf(e) { return String(e.module || '').split(',').map(x => x.trim()).filter(Boolean); }
+function modName(c) { const m = (S.data.modules || []).find(x => x.cod === c); return m ? m.nume : c; }
+function tasksOf(id) { return (S.data.tasks || []).filter(t => t.eventId === id); }
+function riderOf(id) { return (S.data.rider || []).filter(r => r.eventId === id); }
+function taskLate(t) { return t.stare === 'De făcut' && t.termen && t.termen < S.data.now; }
+function mergeById(arr, items) { (items || []).forEach(it => { const i = arr.findIndex(x => x.id === it.id); if (i >= 0) arr[i] = it; else arr.push(it); }); }
 
 function openDetail(id) {
   const e = S.data.events.find(x => x.id === id);
   if (!e) return;
   const rows = FIELDS.filter(([k]) => e[k] !== '' && e[k] != null).map(([k, l]) => {
     let v = (k === 'data' || k === 'optiunePana') ? longDate(e[k]) : shown(e[k]);
-    if (['valoare','avans'].includes(k)) v = Number(e[k]).toLocaleString('ro-RO') + ' lei';
+    if (MONEY.includes(k)) v = lei(e[k]);
     return `<div>${esc(l)}</div><div>${esc(v)}</div>`;
   }).join('');
   openSheet(`<h3>${esc(shown(e.titlu))}</h3><div class="kv">${rows}</div>
+    ${dossierHtml(e)}
     <div class="stamp">Adăugat de ${esc(nameOf(e.creatDe))} la ${esc(e.creatLa)}${e.modificatLa && e.modificatLa !== e.creatLa ? '<br>Modificat de ' + esc(nameOf(e.modificatDe)) + ' la ' + esc(e.modificatLa) : ''}<br>ID ${esc(e.id)}</div>
     <div class="actions">
       <button class="btn pri" id="dEdit">Editează</button>
@@ -399,16 +451,143 @@ function openDetail(id) {
       <button class="btn sec" id="dClose">Închide</button>
     </div>`);
   $('dEdit').onclick = () => openForm(e);
-  $('dDup').onclick = () => { const c = Object.assign({}, e); delete c.id; c.status = 'Opțiune'; c.optiunePana = ''; openForm(null, c); };
+  $('dDup').onclick = () => { const c = Object.assign({}, e); delete c.id; c.status = 'Opțiune'; c.optiunePana = ''; ['spectatoriReali','consumBar','feedback','bilVandute'].forEach(k => c[k] = ''); openForm(null, c); };
   $('dArch').onclick = () => {
     if (!confirm('Arhivezi „' + shown(e.titlu) + '”? Dispare din calendar, dar rămâne în Sheet.')) return;
     call('archiveEvent', [e.id, e.modificatLa], r => {
       if (r.staleEdit) { replaceEvent(r.current); toast('Între timp evenimentul a fost modificat. Verifică și încearcă din nou.', 4500); openDetail(id); return; }
       if (r.error) return toast(r.error, 4500);
+      mergeById(S.data.tasks, r.tasks);
       S.data.events = S.data.events.filter(x => x.id !== id); closeSheet(); render(); toast('Arhivat');
     });
   };
   $('dClose').onclick = closeSheet;
+  bindDossier(e);
+}
+
+/* ---------- dosarul evenimentului: module, sarcini, rider, rezultat ---------- */
+function dossierHtml(e) {
+  const mods = modsOf(e);
+  const tasks = tasksOf(e.id).filter(t => t.stare !== 'Anulată').sort((a, b) => (a.termen || '9').localeCompare(b.termen || '9'));
+  const done = tasks.filter(t => t.stare === 'Gata').length;
+  const rider = riderOf(e.id);
+  let h = '';
+  h += `<div class="sec"><h4>Ce necesită <small>${mods.length ? '' : 'nimic bifat'}</small></h4><div class="mods">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('')}</div></div>`;
+  h += `<div class="sec"><h4>Sarcini <small>${done} din ${tasks.length} gata</small></h4>`;
+  h += tasks.map(t => taskHtml(t, false)).join('') || '<div class="hint">Nicio sarcină încă. Bifează ce necesită evenimentul (Editează) sau adaugă una de mână.</div>';
+  h += `<div id="taskAddBox"></div><button class="mini" id="taskAddBtn">+ Sarcină</button></div>`;
+  if (mods.includes('tehnic') || rider.length) {
+    const act = rider.filter(r => r.stare !== 'Anulat');
+    const cost = act.reduce((a, r) => a + (Number(r.cost) || 0), 0), pret = act.reduce((a, r) => a + (Number(r.pret) || 0), 0);
+    h += `<div class="sec"><h4>Rider tehnic <small>${act.length === 1 ? "1 echipament" : act.length + " echipamente"}</small></h4>`;
+    h += rider.map(r => `<div class="rid ${r.stare === 'Anulat' ? 'cancel' : ''}" data-rid="${esc(r.id)}"><div class="top"><b>${esc(shown(r.echipament))}${r.cantitate ? ' × ' + esc(r.cantitate) : ''}</b><span class="badge b-Confirmat">${esc(r.stare)}</span></div>
+      <div class="sub">${esc(r.sursa)}${r.partener ? ' · ' + esc(shown(r.partener)) : ''} · cost ${lei(r.cost)} · preț ${lei(r.pret)} · marjă ${lei((Number(r.pret) || 0) - (Number(r.cost) || 0))}</div></div>`).join('');
+    h += `<div id="riderBox"></div><button class="mini" id="riderAddBtn">+ Echipament</button>`;
+    if (act.length) h += `<div class="tot" style="margin-top:8px"><div>Cost la noi</div><div>${lei(cost)}</div><div>Preț Organizator</div><div>${lei(pret)}</div><div class="sum">Marjă rider</div><div class="sum ${pret - cost < 0 ? 'neg' : ''}">${lei(pret - cost)}</div></div>`;
+    h += `</div>`;
+  }
+  h += resultHtml(e);
+  return h;
+}
+
+function resultHtml(e) {
+  const act = riderOf(e.id).filter(r => r.stare !== 'Anulat');
+  const cost = act.reduce((a, r) => a + (Number(r.cost) || 0), 0), pret = act.reduce((a, r) => a + (Number(r.pret) || 0), 0);
+  const valoare = Number(e.valoare) || 0;
+  const peste = e.consumBar !== '' && e.consumBar != null ? Math.max(0, (Number(e.consumBar) || 0) - (Number(e.pachetBar) || 0)) : 0;
+  if (!valoare && !pret && !cost && !peste) return '';
+  const total = valoare + pret + peste - cost;
+  return `<div class="sec"><h4>Rezultat <small>estimat din ce e trecut</small></h4><div class="tot">
+    <div>Valoare contract</div><div>${lei(valoare)}</div>
+    ${pret ? `<div>Servicii tehnice refacturate</div><div>${lei(pret)}</div>` : ''}
+    ${peste ? `<div>Bar peste pachet</div><div>${lei(peste)}</div>` : ''}
+    ${cost ? `<div>Cost echipamente</div><div class="neg">− ${lei(cost)}</div>` : ''}
+    <div class="sum">Rezultat</div><div class="sum ${total < 0 ? 'neg' : ''}">${lei(total)}</div>
+  </div><div class="hint">Fără personal, consumabile și utilități. Avans încasat: ${lei(e.avans)}.</div></div>`;
+}
+
+function taskHtml(t, withEvent) {
+  const ev = withEvent ? S.data.events.find(x => x.id === t.eventId) : null;
+  const cls = t.stare === 'Gata' ? 'done' : (t.stare === 'Anulată' ? 'cancel' : (taskLate(t) ? 'late' : ''));
+  const when = t.termen ? (t.termen === S.data.now ? 'azi' : shortDate(t.termen)) : 'fără termen';
+  return `<div class="task ${cls}"><input type="checkbox" data-task="${esc(t.id)}" ${t.stare === 'Gata' ? 'checked' : ''} ${t.stare === 'Anulată' ? 'disabled' : ''}>
+    <div class="tt"><b>${esc(shown(t.sarcina))}</b>
+    <div class="tm">${esc(t.responsabil || 'fără responsabil')} · termen <span class="d">${esc(when)}</span>${ev ? ` · <a href="#" data-open="${esc(ev.id)}">${esc(shown(ev.titlu))}, ${esc(shortDate(ev.data))}</a>` : ''}</div></div></div>`;
+}
+
+function bindTaskChecks(root, after) {
+  root.querySelectorAll('[data-task]').forEach(cb => cb.onchange = () => {
+    const id = cb.dataset.task, gata = cb.checked;
+    call('taskUpdate', [id, { stare: gata ? 'Gata' : 'De făcut' }], r => {
+      if (r.error) return toast(r.error, 4000);
+      mergeById(S.data.tasks, [r.task]); after(); toast(gata ? 'Gata' : 'Redeschisă');
+    });
+  });
+  root.querySelectorAll('[data-open]').forEach(a => a.onclick = ev => { ev.preventDefault(); openDetail(a.dataset.open); });
+}
+
+function bindDossier(e) {
+  const reopen = () => { render(); openDetail(e.id); };
+  bindTaskChecks($('sheet'), reopen);
+  $('taskAddBtn').onclick = () => {
+    $('taskAddBtn').style.display = 'none';
+    $('taskAddBox').innerHTML = `<div class="inl"><label style="margin-top:0">Ce trebuie făcut</label><input id="ta_s">
+      <div class="row2"><div><label>Responsabil</label><select id="ta_r">${opts(S.data.lists.responsabili, e.responsabil, '—')}</select></div>
+      <div><label>Termen</label><input id="ta_t" type="date" value="${esc(e.data)}"></div></div>
+      <div class="actions"><button class="btn pri" id="ta_ok">Adaugă sarcina</button></div></div>`;
+    $('ta_s').focus();
+    $('ta_ok').onclick = () => call('taskAdd', [{ eventId: e.id, sarcina: $('ta_s').value, responsabil: $('ta_r').value, termen: $('ta_t').value }], r => {
+      if (r.error) return toast(r.error, 4000);
+      mergeById(S.data.tasks, [r.task]); reopen(); toast('Sarcină adăugată');
+    });
+  };
+  const rb = $('riderAddBtn');
+  if (!rb) return;
+  const form = (r) => {
+    r = r || { sursa: 'În casă', stare: 'Cerut' };
+    rb.style.display = 'none';
+    const num = v => esc(v === '' || v == null ? '' : v);
+    $('riderBox').innerHTML = `<div class="inl"><label style="margin-top:0">Echipament</label><input id="ri_e" value="${esc(shown(r.echipament || ''))}" placeholder="ex. Mixer digital 32 canale">
+      <div class="row2"><div><label>Cantitate</label><input id="ri_q" inputmode="numeric" value="${num(r.cantitate)}"></div>
+      <div><label>Stare</label><select id="ri_st">${opts(['Cerut','Confirmat','Livrat','Montat','Anulat'], r.stare)}</select></div></div>
+      <div class="row2"><div><label>Sursă</label><select id="ri_s">${opts(['În casă','Partener'], r.sursa)}</select></div>
+      <div><label>Partener</label><input id="ri_p" value="${esc(shown(r.partener || ''))}"></div></div>
+      <div class="row2"><div><label>Cost la noi (lei)</label><input id="ri_c" inputmode="decimal" value="${num(r.cost)}"></div>
+      <div><label>Preț Organizator (lei)</label><input id="ri_pr" inputmode="decimal" value="${num(r.pret)}"></div></div>
+      <label>Note</label><input id="ri_n" value="${esc(shown(r.note || ''))}">
+      <div class="actions"><button class="btn pri" id="ri_ok">${r.id ? 'Salvează' : 'Adaugă'}</button><button class="btn sec" id="ri_x">Renunță</button></div></div>`;
+    $('ri_x').onclick = () => openDetail(e.id);
+    $('ri_ok').onclick = () => call('riderSave', [{ id: r.id, eventId: e.id, echipament: $('ri_e').value, cantitate: $('ri_q').value, stare: $('ri_st').value,
+      sursa: $('ri_s').value, partener: $('ri_p').value, cost: $('ri_c').value, pret: $('ri_pr').value, note: $('ri_n').value }], res => {
+      if (res.error) return toast(res.error, 4000);
+      mergeById(S.data.rider, [res.row]); openDetail(e.id); toast('Rider salvat');
+    });
+    $('riderBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  rb.onclick = () => form(null);
+  $('sheet').querySelectorAll('[data-rid]').forEach(d => d.onclick = () => form(S.data.rider.find(x => x.id === d.dataset.rid)));
+}
+
+/* ---------- tab Sarcini ---------- */
+function renderTasks() {
+  const me = S.data.user && S.data.user.name;
+  const live = new Set(S.data.events.map(e => e.id));
+  let list = (S.data.tasks || []).filter(t => t.stare === 'De făcut' && live.has(t.eventId));
+  if (S.taskScope !== 'toti') list = list.filter(t => t.responsabil === me);
+  else if (S.resp) list = list.filter(t => t.responsabil === S.resp);
+  list.sort((a, b) => (a.termen || '9').localeCompare(b.termen || '9'));
+  const t = S.data.now, week = addDaysIso(t, 7);
+  const groups = [['Întârziate', x => x.termen && x.termen < t], ['Azi', x => x.termen === t],
+    ['În următoarele 7 zile', x => x.termen > t && x.termen <= week], ['Mai târziu', x => !x.termen || x.termen > week]];
+  let h = `<div class="mods" style="margin-bottom:12px"><span class="mod ${S.taskScope !== 'toti' ? 'on' : ''}" data-scope="eu">Ale mele (${esc(me || '')})</span><span class="mod ${S.taskScope === 'toti' ? 'on' : ''}" data-scope="toti">Toată echipa</span></div>`;
+  groups.forEach(([name, fn]) => {
+    const g = list.filter(fn);
+    if (g.length) h += `<div class="dayhead"><span>${name}</span><span class="hint">${g.length}</span></div>` + g.map(x => taskHtml(x, true)).join('');
+  });
+  if (!list.length) h += '<div class="empty">Nicio sarcină deschisă.</div>';
+  $('view').innerHTML = h;
+  $('view').querySelectorAll('[data-scope]').forEach(b => b.onclick = () => { S.taskScope = b.dataset.scope; renderTasks(); });
+  bindTaskChecks($('view'), renderTasks);
 }
 
 function opts(list, val, empty) {
@@ -439,6 +618,14 @@ function openForm(e, prefill) {
     </div>
     <div id="optBox"><label>Rezervare temporară valabilă până la</label><input id="f_optiunePana" type="date" value="${f('optiunePana')}"></div>
     <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
+    <label>Ce necesită</label>
+    <div class="mods" id="modsBox">${(S.data.modules || []).map(m => `<label class="mod"><input type="checkbox" value="${esc(m.cod)}" ${modsOf(v).includes(m.cod) ? 'checked' : ''}>${esc(m.nume)}</label>`).join('')}</div>
+    <div class="hint">Fiecare bifă creează sarcinile oamenilor implicați. Concession se bifează singur peste ${esc(L.pragConcession)} de spectatori în ${esc(L.spatiuConcession)}.</div>
+    <div id="barBox"><label>Bar: interval</label><input id="f_barInterval" value="${f('barInterval')}" placeholder="ex. 18:00–23:00"></div>
+    <div id="bilBox"><div class="row2"><div><label>Bilete: platformă</label><input id="f_bilPlatforma" value="${f('bilPlatforma')}" placeholder="Eventbook, iaBilet…"></div>
+      <div><label>Capacitate</label><input id="f_capacitate" inputmode="numeric" value="${f('capacitate')}"></div></div>
+      <div class="row2"><div><label>Bilete: link</label><input id="f_bilLink" value="${f('bilLink')}"></div>
+      <div><label>Bilete vândute</label><input id="f_bilVandute" inputmode="numeric" value="${f('bilVandute')}"></div></div></div>
     <label>Note</label><textarea id="f_note">${f('note')}</textarea>
     <details ${hasLog ? 'open' : ''}><summary>Client, bani și logistică</summary>
       <label>Client / partener</label><input id="f_client" value="${f('client')}">
@@ -447,6 +634,7 @@ function openForm(e, prefill) {
         <div><label>Valoare (lei)</label><input id="f_valoare" inputmode="decimal" value="${f('valoare')}"></div>
         <div><label>Avans (lei)</label><input id="f_avans" inputmode="decimal" value="${f('avans')}"></div>
       </div>
+      <label>Pachet bar inclus pentru Organizator (lei)</label><input id="f_pachetBar" inputmode="decimal" value="${f('pachetBar')}">
       <div class="row2">
         <div><label>Montaj de la</label><input id="f_montaj" type="time" value="${f('montaj')}"></div>
         <div><label>Demontaj până la</label><input id="f_demontaj" type="time" value="${f('demontaj')}"></div>
@@ -455,6 +643,10 @@ function openForm(e, prefill) {
       <label>Necesar tehnic</label><textarea id="f_tehnic">${f('tehnic')}</textarea>
       <label>Bar și consum</label><textarea id="f_bar">${f('bar')}</textarea>
     </details>
+    ${!isNew ? `<details ${['spectatoriReali','consumBar','feedback'].some(k => v[k] !== '' && v[k] != null) ? 'open' : ''}><summary>După eveniment</summary>
+      <div class="row2"><div><label>Spectatori reali</label><input id="f_spectatoriReali" inputmode="numeric" value="${f('spectatoriReali')}"></div>
+      <div><label>Consum bar realizat (lei)</label><input id="f_consumBar" inputmode="decimal" value="${f('consumBar')}"></div></div>
+      <label>Feedback client</label><textarea id="f_feedback">${f('feedback')}</textarea></details>` : ''}
     ${isNew ? `<details><summary>Se repetă</summary>
       <div class="row2">
         <div><label>Cum</label><select id="r_mode">
@@ -473,6 +665,34 @@ function openForm(e, prefill) {
   $('fCancel').onclick = () => isNew ? closeSheet() : openDetail(e.id);
   $('fSave').onclick = () => submit(e, false);
   bindOptBox();
+  bindMods(isNew, v);
+}
+function bindMods(isNew, v) {
+  const L = S.data.lists, box = $('modsBox');
+  if (!box) return;
+  let touched = !isNew || modsOf(v).length > 0, concManual = false;
+  const cb = c => box.querySelector('input[value="' + c + '"]');
+  const paint = () => {
+    box.querySelectorAll('.mod').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
+    const on = c => cb(c) && cb(c).checked;
+    $('barBox').style.display = on('bar') ? '' : 'none';
+    $('bilBox').style.display = on('bilete') ? '' : 'none';
+  };
+  const conc = () => {
+    if (concManual || !cb('concession')) return;
+    const n = Number(String($('f_participanti').value).replace(/\s/g, '')) || 0;
+    if ($('f_spatiu').value === L.spatiuConcession && n >= Number(L.pragConcession)) { cb('concession').checked = true; paint(); }
+  };
+  box.querySelectorAll('input').forEach(i => i.onchange = () => { touched = true; if (i.value === 'concession') concManual = true; paint(); });
+  $('f_tip').onchange = () => {
+    if (touched) return;
+    const tip = $('f_tip').value;
+    (S.data.modules || []).forEach(m => { if (cb(m.cod)) cb(m.cod).checked = m.tipuri.includes(tip); });
+    paint(); conc();
+  };
+  $('f_participanti').oninput = conc;
+  $('f_spatiu').onchange = conc;
+  paint();
 }
 function bindOptBox() {
   const sync = () => {
@@ -487,6 +707,7 @@ function readForm(e) {
   const o = e ? { id: e.id } : {};
   FIELDS.forEach(([k]) => { const el = $('f_' + k); if (el) o[k] = el.value; });
   o.titlu = $('f_titlu').value;
+  if ($('modsBox')) o.module = Array.from($('modsBox').querySelectorAll('input:checked')).map(i => i.value).join(',');
   if (o.status !== 'Opțiune') o.optiunePana = '';
   return o;
 }
@@ -511,6 +732,7 @@ function submit(e, force) {
     if (r.needsConfirm) return showConflicts(r.conflicts, e);
     if (r.unchanged) { toast('Nimic de salvat'); return openDetail(e.id); }
     r.events.forEach(replaceEvent);
+    mergeById(S.data.tasks, r.tasks);
     closeSheet(); render();
     toast(r.events.length > 1 ? 'Am adăugat ' + r.events.length + ' evenimente' : (e ? 'Salvat' : 'Adăugat'));
   });
@@ -534,7 +756,10 @@ function restoreForm(html, values, e) {
   if (rp && $('r_mode')) { $('r_mode').value = rp.mode; $('r_count').value = rp.count; }
   $('fCancel').onclick = () => e ? openDetail(e.id) : closeSheet();
   $('fSave').onclick = () => submit(e, false);
+  const mods = String(values.module || '').split(',');
+  if ($('modsBox')) $('modsBox').querySelectorAll('input').forEach(i => i.checked = mods.includes(i.value));
   bindOptBox();
+  bindMods(false, values);
 }
 
 function replaceEvent(ev) {

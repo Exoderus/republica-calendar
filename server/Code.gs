@@ -14,6 +14,10 @@ const SHEET_EV = 'Evenimente';
 const SHEET_LISTE = 'Liste';
 const SHEET_LOG = 'Jurnal';
 const SHEET_TEAM = 'Echipa';
+const SHEET_TASKS = 'Sarcini';
+const SHEET_RIDER = 'Rider';
+const SHEET_MODULES = 'Module';
+const SHEET_TEMPLATES = 'Șabloane';
 const TZ = 'Europe/Bucharest';
 
 // Spații cu reguli speciale la verificarea suprapunerilor (numele trebuie să fie identice cu cele din „Liste”)
@@ -25,7 +29,8 @@ const ZILE_OPTIUNE = 3;            // valabilitatea implicită a unei opțiuni, 
 
 const COLS = ['id', 'titlu', 'tip', 'spatiu', 'data', 'start', 'sfarsit', 'montaj', 'demontaj',
   'status', 'responsabil', 'client', 'contact', 'participanti', 'valoare', 'avans',
-  'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat', 'optiunePana'];
+  'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat', 'optiunePana',
+  'module', 'barInterval', 'pachetBar', 'bilPlatforma', 'bilLink', 'capacitate', 'bilVandute', 'spectatoriReali', 'consumBar', 'feedback'];
 
 const LABELS = {
   titlu: 'Titlu', tip: 'Tip', spatiu: 'Spațiu', data: 'Data', start: 'Ora început',
@@ -33,13 +38,14 @@ const LABELS = {
   responsabil: 'Responsabil', client: 'Client / partener', contact: 'Contact',
   participanti: 'Participanți estimați', valoare: 'Valoare (lei)', avans: 'Avans (lei)',
   tehnic: 'Necesar tehnic', bar: 'Bar și consum', note: 'Note',
-  optiunePana: 'Opțiune valabilă până la'
+  optiunePana: 'Opțiune valabilă până la', module: 'Module', barInterval: 'Bar: interval',
+  pachetBar: 'Pachet bar inclus (lei)', bilPlatforma: 'Bilete: platformă', bilLink: 'Bilete: link',
+  capacitate: 'Capacitate', bilVandute: 'Bilete vândute', spectatoriReali: 'Spectatori reali',
+  consumBar: 'Consum bar realizat (lei)', feedback: 'Feedback client'
 };
 
 const EDITABLE = Object.keys(LABELS);
-const NUMERIC = ['participanti', 'valoare', 'avans'];
-const NUM_COL_START = COLS.indexOf('participanti') + 1; // N
-const NUM_COL_COUNT = 3;                                 // N:P
+const NUMERIC = ['participanti', 'valoare', 'avans', 'pachetBar', 'capacitate', 'bilVandute', 'spectatoriReali', 'consumBar'];
 
 /* ---------- Intrare web ---------- */
 
@@ -60,6 +66,9 @@ function doPost(e) {
     if (req.action === 'bootstrap') return json_(getData());
     if (req.action === 'save') return json_(saveEvent(req.event || {}, req.opts || {}));
     if (req.action === 'archive') return json_(archiveEvent(String(req.id || ''), req.expectedModified));
+    if (req.action === 'task') return json_(taskUpdate(String(req.id || ''), req.patch || {}));
+    if (req.action === 'task_add') return json_(taskAdd(req.task || {}));
+    if (req.action === 'rider_save') return json_(riderSave(req.row || {}));
     return json_({ error: 'bad_request' });
   } catch (err) {
     return json_({ error: 'server', message: String(err && err.message || err) });
@@ -108,7 +117,11 @@ function getData() {
     return {
       user: USER_,
       lists: readLists_(),
+      modules: readModules_(),
+      templates: readTemplates_(),
       events: events,
+      tasks: readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM).map(strip_),
+      rider: readTable_(SHEET_RIDER, RIDER_COLS, RIDER_NUM).map(strip_),
       sheetUrl: ss_().getUrl(),
       now: Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd')
     };
@@ -158,8 +171,9 @@ function saveEvent(input, opts) {
       const merged = Object.assign({}, cur, ev, { modificatDe: user, modificatLa: now });
       writeRow_(sh, cur._row, merged);
       log_(user, 'Modificat', merged.id, merged.titlu, changes.join('; '));
+      const tasks = syncTasks_([{ ev: merged, prev: cur }]);
       delete merged._row;
-      return { ok: true, events: [merged], conflicts: conflicts };
+      return { ok: true, events: [merged], conflicts: conflicts, tasks: tasks };
     }
 
     // Eveniment nou (eventual repetat)
@@ -181,7 +195,8 @@ function saveEvent(input, opts) {
     sh.getRange(start, 1, rows.length, COLS.length).setValues(rows.map(toRow_));
     const det = rows.length > 1 ? 'Serie de ' + rows.length + ': ' + rows.map(r => r.data).join(', ') : summary_(rows[0]);
     log_(user, rows.length > 1 ? 'Adăugat (serie)' : 'Adăugat', rows.map(r => r.id).join(', '), ev.titlu, det);
-    return { ok: true, events: rows, conflicts: conflicts };
+    const tasks = syncTasks_(rows.map(r => ({ ev: r, prev: null })));
+    return { ok: true, events: rows, conflicts: conflicts, tasks: tasks };
   } finally {
     lock.releaseLock();
   }
@@ -203,7 +218,8 @@ function archiveEvent(id, expectedModified) {
     const merged = Object.assign({}, cur, { arhivat: 'DA', modificatDe: user, modificatLa: stamp_() });
     writeRow_(ss_().getSheetByName(SHEET_EV), cur._row, merged);
     log_(user, 'Arhivat', id, cur.titlu, summary_(cur));
-    return { ok: true, id: id };
+    const tasks = syncTasks_([{ ev: merged, prev: cur }]);
+    return { ok: true, id: id, tasks: tasks };
   } finally {
     lock.releaseLock();
   }
@@ -276,9 +292,19 @@ function ensureRows_(sh, needed) {
 }
 
 function formatRows_(sh, start, n) {
-  sh.getRange(start, 1, n, NUM_COL_START - 1).setNumberFormat('@');
-  sh.getRange(start, NUM_COL_START, n, NUM_COL_COUNT).setNumberFormat('#,##0');
-  sh.getRange(start, NUM_COL_START + NUM_COL_COUNT, n, COLS.length - NUM_COL_START - NUM_COL_COUNT + 1).setNumberFormat('@');
+  formatCols_(sh, start, n, COLS, NUMERIC);
+}
+
+/** Pune formatul fiecărei coloane: text pentru tot, număr pentru coloanele numerice. */
+function formatCols_(sh, start, n, cols, numeric) {
+  let i = 0;
+  while (i < cols.length) {
+    const isNum = numeric.indexOf(cols[i]) >= 0;
+    let j = i;
+    while (j + 1 < cols.length && (numeric.indexOf(cols[j + 1]) >= 0) === isNum) j++;
+    sh.getRange(start, i + 1, n, j - i + 1).setNumberFormat(isNum ? '#,##0' : '@');
+    i = j + 1;
+  }
 }
 
 function readLists_() {
@@ -287,7 +313,17 @@ function readLists_() {
   const col = i => vals.map(r => String(r[i]).trim()).filter(Boolean);
   const spatii = vals.filter(r => String(r[0]).trim())
     .map(r => ({ name: String(r[0]).trim(), color: String(r[1]).trim() || '#4A4A4A' }));
-  return { spatii: spatii, tipuri: col(3), responsabili: col(5), statusuri: col(7) };
+  const set = {};
+  const lastCol = sh.getLastColumn();
+  if (lastCol >= 11) {
+    sh.getRange(2, 10, Math.max(sh.getLastRow() - 1, 1), 2).getDisplayValues()
+      .forEach(r => { if (String(r[0]).trim()) set[String(r[0]).trim()] = String(r[1]).trim(); });
+  }
+  return {
+    spatii: spatii, tipuri: col(3), responsabili: col(5), statusuri: col(7),
+    pragConcession: Number(set['Prag concession (spectatori)']) || 150,
+    spatiuConcession: set['Spațiu concession'] || 'Sala mare'
+  };
 }
 
 function log_(user, action, id, titlu, details) {
@@ -295,6 +331,223 @@ function log_(user, action, id, titlu, details) {
   const row = sh.getLastRow() + 1;
   ensureRows_(sh, row);
   sh.getRange(row, 1, 1, 6).setNumberFormat('@').setValues([[stamp_(), user + (USER_ ? ' <' + USER_.email + '>' : ''), action, id, titlu, details]]);
+}
+
+
+/* ---------- Module, șabloane, sarcini, rider ---------- */
+
+const TASK_COLS = ['id', 'eventId', 'modul', 'sarcina', 'responsabil', 'zile', 'termen', 'stare', 'sablon', 'note', 'modificatDe', 'modificatLa'];
+const TASK_NUM = ['zile'];
+const RIDER_COLS = ['id', 'eventId', 'echipament', 'cantitate', 'sursa', 'partener', 'cost', 'pret', 'stare', 'note', 'modificatDe', 'modificatLa'];
+const RIDER_NUM = ['cantitate', 'cost', 'pret'];
+const T_OPEN = 'De făcut', T_DONE = 'Gata', T_CANCEL = 'Anulată';
+
+function strip_(o) { delete o._row; return o; }
+
+function readModules_() {
+  const sh = ss_().getSheetByName(SHEET_MODULES);
+  if (sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues()
+    .filter(r => String(r[0]).trim())
+    .map(r => ({
+      cod: String(r[0]).trim(), nume: String(r[1]).trim() || String(r[0]).trim(),
+      tipuri: String(r[2]).split(',').map(x => x.trim()).filter(Boolean)
+    }));
+}
+
+function readTemplates_() {
+  const sh = ss_().getSheetByName(SHEET_TEMPLATES);
+  if (sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 5).getDisplayValues()
+    .filter(r => String(r[0]).trim() && String(r[1]).trim() && String(r[2]).trim())
+    .map(r => ({
+      cod: String(r[0]).trim(), modul: String(r[1]).trim(), sarcina: String(r[2]).trim(),
+      responsabil: String(r[3]).trim(), zile: Number(String(r[4]).replace(',', '.')) || 0
+    }));
+}
+
+function readTable_(name, cols, numeric) {
+  const sh = ss_().getSheetByName(name);
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, cols.length).getValues()
+    .map((r, i) => {
+      const o = { _row: i + 2 };
+      cols.forEach((k, j) => {
+        let v = r[j];
+        if (numeric.indexOf(k) >= 0) v = (v === '' || v === null) ? '' : Number(v) || 0;
+        else if (k === 'termen') v = normDate_(v);
+        else if (v instanceof Date) v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd HH:mm:ss');
+        else v = String(v === null || v === undefined ? '' : v).trim();
+        o[k] = v;
+      });
+      return o;
+    })
+    .filter(o => o.id);
+}
+
+function tableRow_(o, cols, numeric) {
+  return cols.map(k => {
+    const v = o[k];
+    if (numeric.indexOf(k) >= 0) return (v === '' || v === null || v === undefined) ? '' : Number(v);
+    return v === null || v === undefined ? '' : String(v);
+  });
+}
+
+function writeTableRow_(name, cols, numeric, row, o) {
+  const sh = ss_().getSheetByName(name);
+  formatCols_(sh, row, 1, cols, numeric);
+  sh.getRange(row, 1, 1, cols.length).setValues([tableRow_(o, cols, numeric)]);
+}
+
+function appendTableRows_(name, cols, numeric, list) {
+  if (!list.length) return;
+  const sh = ss_().getSheetByName(name);
+  const start = sh.getLastRow() + 1;
+  ensureRows_(sh, start + list.length);
+  formatCols_(sh, start, list.length, cols, numeric);
+  sh.getRange(start, 1, list.length, cols.length).setValues(list.map(o => tableRow_(o, cols, numeric)));
+}
+
+function newSimpleId_(prefix, existing) {
+  const used = {};
+  existing.forEach(e => used[e.id] = true);
+  let id;
+  do { id = prefix + Utilities.formatDate(new Date(), TZ, 'yyMMdd') + '-' + Math.random().toString(36).slice(2, 6).toUpperCase(); } while (used[id]);
+  return id;
+}
+
+function modsOf_(ev) {
+  return String(ev.module || '').split(',').map(x => x.trim()).filter(Boolean);
+}
+
+/**
+ * Ține sarcinile evenimentelor la zi față de modulele bifate:
+ * modul bifat → sarcinile din șabloane (create o singură dată);
+ * modul debifat, eveniment anulat sau arhivat → sarcinile nefăcute devin „Anulată”;
+ * data sau responsabilul schimbat → termenele și responsabilii sarcinilor nefăcute se actualizează.
+ * Întoarce sarcinile modificate sau create.
+ */
+function syncTasks_(pairs) {
+  const templates = readTemplates_();
+  const all = readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM);
+  const user = currentUser_(), now = stamp_();
+  const changed = [], created = [];
+  pairs.forEach(({ ev, prev }) => {
+    const dead = ev.arhivat === 'DA' || ev.status === STATUS_ANULAT;
+    const mods = dead ? [] : modsOf_(ev);
+    const mine = all.filter(t => t.eventId === ev.id);
+    templates.forEach(tp => {
+      const want = mods.indexOf(tp.modul) >= 0;
+      const t = mine.find(x => x.sablon === tp.cod);
+      const resp = tp.responsabil === '@responsabil' ? (ev.responsabil || '') : tp.responsabil;
+      const termen = addDays_(ev.data, -tp.zile);
+      if (want && !t) {
+        const nt = {
+          id: newSimpleId_('T', all.concat(created)), eventId: ev.id, modul: tp.modul, sarcina: tp.sarcina,
+          responsabil: resp, zile: tp.zile, termen: termen, stare: T_OPEN, sablon: tp.cod, note: '',
+          modificatDe: user, modificatLa: now
+        };
+        created.push(nt);
+        return;
+      }
+      if (!t) return;
+      let dirty = false;
+      if (want && t.stare === T_CANCEL) { t.stare = T_OPEN; dirty = true; }
+      if (!want && t.stare === T_OPEN) { t.stare = T_CANCEL; dirty = true; }
+      if (t.stare === T_OPEN) {
+        if (t.termen !== termen && prev && prev.data !== ev.data) { t.termen = termen; dirty = true; }
+        if (tp.responsabil === '@responsabil' && prev && prev.responsabil !== ev.responsabil && t.responsabil === (prev.responsabil || '')) {
+          t.responsabil = ev.responsabil || ''; dirty = true;
+        }
+      }
+      if (dirty) { t.modificatDe = user; t.modificatLa = now; changed.push(t); }
+    });
+    // sarcinile adăugate de mână rămân, dar se anulează odată cu evenimentul
+    if (dead) mine.filter(t => !t.sablon && t.stare === T_OPEN).forEach(t => {
+      t.stare = T_CANCEL; t.modificatDe = user; t.modificatLa = now; changed.push(t);
+    });
+  });
+  changed.forEach(t => writeTableRow_(SHEET_TASKS, TASK_COLS, TASK_NUM, t._row, t));
+  appendTableRows_(SHEET_TASKS, TASK_COLS, TASK_NUM, created);
+  return changed.concat(created).map(t => strip_(Object.assign({}, t)));
+}
+
+function taskUpdate(id, patch) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const all = readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM);
+    const t = all.find(x => x.id === id);
+    if (!t) return { error: 'Sarcina nu mai există.' };
+    const before = t.stare + ' · ' + t.responsabil + ' · ' + t.termen;
+    if (patch.stare !== undefined && [T_OPEN, T_DONE, T_CANCEL].indexOf(patch.stare) >= 0) t.stare = patch.stare;
+    if (patch.responsabil !== undefined) t.responsabil = String(patch.responsabil).trim().slice(0, 100);
+    if (patch.termen !== undefined) t.termen = normDate_(patch.termen);
+    if (patch.note !== undefined) t.note = safeText_(patch.note);
+    t.modificatDe = currentUser_(); t.modificatLa = stamp_();
+    writeTableRow_(SHEET_TASKS, TASK_COLS, TASK_NUM, t._row, t);
+    log_(t.modificatDe, 'Sarcină', t.eventId, t.sarcina, before + ' → ' + t.stare + ' · ' + t.responsabil + ' · ' + t.termen);
+    return { ok: true, task: strip_(t) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function taskAdd(input) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sarcina = safeText_(input.sarcina);
+    if (!sarcina || !input.eventId) return { error: 'Scrie ce trebuie făcut.' };
+    const all = readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM);
+    const t = {
+      id: newSimpleId_('T', all), eventId: String(input.eventId), modul: String(input.modul || ''), sarcina: sarcina,
+      responsabil: String(input.responsabil || '').trim(), zile: '', termen: normDate_(input.termen), stare: T_OPEN,
+      sablon: '', note: safeText_(input.note), modificatDe: currentUser_(), modificatLa: stamp_()
+    };
+    appendTableRows_(SHEET_TASKS, TASK_COLS, TASK_NUM, [t]);
+    log_(t.modificatDe, 'Sarcină nouă', t.eventId, t.sarcina, t.responsabil + ' · ' + t.termen);
+    return { ok: true, task: t };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function riderSave(input) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const all = readTable_(SHEET_RIDER, RIDER_COLS, RIDER_NUM);
+    const num = v => { v = String(v === undefined || v === null ? '' : v).replace(/\s/g, '').replace(',', '.'); return v === '' || isNaN(Number(v)) ? '' : Number(v); };
+    const o = {
+      eventId: String(input.eventId || ''), echipament: safeText_(input.echipament), cantitate: num(input.cantitate),
+      sursa: input.sursa === 'Partener' ? 'Partener' : 'În casă', partener: safeText_(input.partener),
+      cost: num(input.cost), pret: num(input.pret),
+      stare: ['Cerut', 'Confirmat', 'Livrat', 'Montat', 'Anulat'].indexOf(input.stare) >= 0 ? input.stare : 'Cerut',
+      note: safeText_(input.note), modificatDe: currentUser_(), modificatLa: stamp_()
+    };
+    if (!o.echipament || !o.eventId) return { error: 'Scrie echipamentul.' };
+    if (input.id) {
+      const cur = all.find(x => x.id === input.id);
+      if (!cur) return { error: 'Rândul nu mai există.' };
+      const merged = Object.assign(cur, o);
+      writeTableRow_(SHEET_RIDER, RIDER_COLS, RIDER_NUM, cur._row, merged);
+      log_(o.modificatDe, 'Rider', o.eventId, o.echipament, o.stare + ' · ' + o.sursa + (o.partener ? ' (' + o.partener + ')' : '') + ' · cost ' + o.cost + ' · preț ' + o.pret);
+      return { ok: true, row: strip_(merged) };
+    }
+    o.id = newSimpleId_('R', all);
+    appendTableRows_(SHEET_RIDER, RIDER_COLS, RIDER_NUM, [o]);
+    log_(o.modificatDe, 'Rider nou', o.eventId, o.echipament, o.sursa + (o.partener ? ' (' + o.partener + ')' : '') + ' · cost ' + o.cost + ' · preț ' + o.pret);
+    return { ok: true, row: o };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function safeText_(v) {
+  v = String(v === undefined || v === null ? '' : v).trim().slice(0, 2000);
+  return /^[=+\-@]/.test(v) ? "'" + v : v;
 }
 
 /* ---------- Validare și normalizare ---------- */
