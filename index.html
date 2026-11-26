@@ -472,9 +472,9 @@ function dossierHtml(e) {
   const done = tasks.filter(t => t.stare === 'Gata').length;
   const rider = riderOf(e.id);
   let h = '';
-  h += `<div class="sec"><h4>Ce necesită <small>${mods.length ? '' : 'nimic bifat'}</small></h4><div class="mods">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('')}</div></div>`;
+  h += `<div class="sec"><h4>Necesar logistic <small>${mods.length ? '' : 'nimic bifat'}</small></h4><div class="mods">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('')}</div></div>`;
   h += `<div class="sec"><h4>Sarcini <small>${done} din ${tasks.length} gata</small></h4>`;
-  h += tasks.map(t => taskHtml(t, false)).join('') || '<div class="hint">Nicio sarcină încă. Bifează ce necesită evenimentul (Editează) sau adaugă una de mână.</div>';
+  h += tasks.map(t => taskHtml(t, false)).join('') || '<div class="hint">Nicio sarcină încă. Bifează necesarul logistic (Editează) sau adaugă una de mână.</div>';
   h += `<div id="taskAddBox"></div><button class="mini" id="taskAddBtn">+ Sarcină</button></div>`;
   if (mods.includes('tehnic') || rider.length) {
     const act = rider.filter(r => r.stare !== 'Anulat');
@@ -618,7 +618,7 @@ function openForm(e, prefill) {
     </div>
     <div id="optBox"><label>Rezervare temporară valabilă până la</label><input id="f_optiunePana" type="date" value="${f('optiunePana')}"></div>
     <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
-    <label>Ce necesită</label>
+    <label>Necesar logistic</label>
     <div class="mods" id="modsBox">${(S.data.modules || []).map(m => `<label class="mod"><input type="checkbox" value="${esc(m.cod)}" ${modsOf(v).includes(m.cod) ? 'checked' : ''}>${esc(m.nume)}</label>`).join('')}</div>
     <div class="hint">Fiecare bifă creează sarcinile oamenilor implicați. Concession se bifează singur peste ${esc(L.pragConcession)} de spectatori în ${esc(L.spatiuConcession)}.</div>
     <div id="barBox"><label>Bar: interval</label><input id="f_barInterval" value="${f('barInterval')}" placeholder="ex. 18:00–23:00"></div>
