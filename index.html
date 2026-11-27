@@ -106,6 +106,8 @@
   input.tm-in{font-variant-numeric:tabular-nums} input.tm-in.bad{border-color:var(--red);background:#FCEDEB}
   .dayhead.flash{animation:flash 1.5s ease-out} @keyframes flash{0%,40%{background:#FADCE3}100%{background:transparent}}
   .secure{font-weight:700;letter-spacing:.2px} .secure span{font-weight:400;opacity:.75;font-size:.92em}
+  table.adus{width:100%;border-collapse:collapse;font-size:14px} table.adus th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)} table.adus td{padding:7px 8px;border-bottom:1px solid #EEE8DD}
+  table.adus tr.arow td{font-size:13px;color:var(--muted);padding:4px 8px 4px 22px;cursor:pointer} table.adus tr.arow:hover td{background:#F6F2EA}
   .navbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
   .bnav{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
@@ -711,6 +713,21 @@ function renderHome() {
     (issues.length ? issues.slice(0, 12).map(([e, why, c]) => `<div class="todo" data-id="${esc(e.id)}"><i style="background:${c}"></i><span style="flex:1"><b>${esc(why)}</b><br><span class="hint">${esc(shown(e.titlu))} · ${esc(shortDay(e.data))}</span></span></div>`).join('') + (issues.length > 12 ? `<div class="nothing">și încă ${issues.length - 12}…</div>` : '')
       : '<div class="nothing">Totul e în regulă.</div>') + `</section>`;
 
+  // Contracte aduse, pe oameni, în luna aleasă (după data evenimentului; anulatele nu se numără)
+  const aym = S.adusYm || today.slice(0, 7);
+  const [ay, am] = aym.split('-').map(Number);
+  const com = D.lists.comisioane || {};
+  const adus = D.events.filter(e => e.adusDe && e.status !== 'Anulat' && e.data.slice(0, 7) === aym).sort((a, b) => a.data.localeCompare(b.data));
+  const byP = {}; adus.forEach(e => (byP[e.adusDe] = byP[e.adusDe] || []).push(e));
+  const rowsA = Object.entries(byP).sort((a, b) => b[1].length - a[1].length);
+  h += `<section class="panel span3" id="adusPanel"><h4>Contracte aduse · ${esc(RO_LUNI[am - 1])} ${ay} <span style="display:flex;gap:6px"><button class="navbtn" id="aPrev">&#8249;</button><button class="navbtn" id="aNext">&#8250;</button></span></h4>` +
+    (rowsA.length ? `<table class="adus"><tr><th>Adus de</th><th>Contracte</th><th>Confirmate</th><th>Valoare confirmată</th><th>Comision</th></tr>` + rowsA.map(([n, l]) => {
+      const c = l.filter(e => e.status === 'Confirmat'), v = c.reduce((a, e) => a + (Number(e.valoare) || 0), 0);
+      return `<tr class="ahead" data-p="${esc(n)}"><td><b>${esc(n)}</b></td><td>${l.length}</td><td>${c.length}${l.length > c.length ? ` <span class="hint">+ ${l.length - c.length} opțiuni</span>` : ''}</td><td>${lei0(v)}</td><td>${com[n] ? lei0(v * com[n] / 100) + ` <span class="hint">${com[n]}%</span>` : '<span class="hint">—</span>'}</td></tr>` +
+        l.map(e => `<tr class="arow" data-id="${esc(e.id)}"><td colspan="2">${esc(shortDay(e.data))} · ${esc(shown(e.titlu))}</td><td>${esc(e.status)}</td><td>${e.valoare ? lei0(Number(e.valoare)) : '<span class="hint">fără valoare</span>'}</td><td></td></tr>`).join('');
+    }).join('') + `</table><div class="hint" style="margin-top:6px">După data evenimentului. Comisionul se calculează doar pe evenimentele confirmate, din câmpul Valoare. Procentele se setează în Sheet, tabul Liste.</div>`
+      : `<div class="nothing">Niciun contract cu „Contact adus de” completat în ${esc(RO_LUNI[am - 1])}.</div>`) + `</section>`;
+
   // Ocupare 30 de zile
   const end30 = addDaysIso(today, 29);
   const occ = D.lists.spatii.filter(sp => sp.name !== 'În afara locației').map(sp => {
@@ -723,6 +740,11 @@ function renderHome() {
     occ.map(o => `<div><b>${esc(o.sp.name)}</b></div><div class="bar"><i style="width:${Math.round(o.days / 30 * 100)}%;background:${esc(o.sp.color)}"></i></div><div class="n">${o.days}/30 zile · ${o.hrs} h</div>`).join('') + `</div></section>`;
   h += `</div><div class="shortcuts">Scurtături: <kbd>N</kbd> eveniment nou · <kbd>/</kbd> caută · <kbd>T</kbd> azi · <kbd>B</kbd> brief · <kbd>1</kbd>–<kbd>5</kbd> taburi · <kbd>←</kbd> <kbd>→</kbd> săptămâna/luna · <kbd>Esc</kbd> închide</div>`;
   $('view').innerHTML = h;
+  if ($('aPrev')) {
+    const mv = n => { const d = new Date(ay, am - 1 + n, 1); S.adusYm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); renderHome(); setTimeout(() => $('adusPanel') && $('adusPanel').scrollIntoView({ block: 'nearest' }), 0); };
+    $('aPrev').onclick = () => mv(-1); $('aNext').onclick = () => mv(1);
+    $('view').querySelectorAll('#adusPanel .arow').forEach(r => r.onclick = () => openDetail(r.dataset.id));
+  }
   $('view').querySelectorAll('[data-go]').forEach(b => b.onclick = () => setView(b.dataset.go));
   $('hBrief').onclick = () => openBrief(today);
   // spre finalul lunii, dacă nu mai e nimic public de azi încolo, programul se deschide direct pe luna următoare

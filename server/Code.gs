@@ -343,7 +343,9 @@ function readLists_() {
     spatii: spatii, tipuri: col(3), responsabili: col(5), statusuri: col(7),
     pragConcession: Number(set['Prag concession (spectatori)']) || 150,
     spatiuConcession: set['Spațiu concession'] || 'Sala mare',
-    pauza: set['Pauză între evenimente (min)'] === '' || set['Pauză între evenimente (min)'] == null ? 30 : (Number(set['Pauză între evenimente (min)']) || 0)
+    pauza: set['Pauză între evenimente (min)'] === '' || set['Pauză între evenimente (min)'] == null ? 30 : (Number(set['Pauză între evenimente (min)']) || 0),
+    // rânduri de forma „Comision Ioana (%)” = 20
+    comisioane: Object.keys(set).reduce((o, k) => { const m = /^Comision (.+) \(%\)$/.exec(k); if (m && Number(set[k])) o[m[1].trim()] = Number(set[k]); return o; }, {})
   };
 }
 
