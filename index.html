@@ -824,7 +824,7 @@ function openBrief(day) {
   const mom = [];
   evs.forEach(e => {
     const today = e.data === day, col = colorOf(e.spatiu), t = shown(e.titlu);
-    if (e.montaj && (e.montajData ? e.montajData === day : today)) mom.push([e.montaj, e, 'Montaj începe' + (e.echipOrg ? ' · ' + echipVal(e.echipOrg).toLowerCase() : '') + (inchiriaza(e.echipOrg) && shown(e.tehnic) ? ' (' + shown(e.tehnic) + ')' : ''), 'deschide: ' + (e.deschide || DE_TURA)]);
+    if (e.montaj && (e.montajData ? e.montajData === day : today)) mom.push([e.montaj, e, 'Montaj începe' + (e.echipOrg ? ' · ' + echipVal(e.echipOrg).toLowerCase() : '') + (inchiriaza(e.echipOrg) && shown(e.tehnic) ? ' (' + shown(e.tehnic) + ')' : '') + (areTehnician(e.sprijinTehnic) ? ' · cu tehnician de la noi' : ''), 'deschide: ' + (e.deschide || DE_TURA)]);
     if (!today) return;
     if (e.proba) mom.push([e.proba, e, 'Probă de sunet', 'Bogdan']);
     if (e.acces) mom.push([e.acces, e, 'Acces public', e.responsabil ? 'resp.: ' + e.responsabil : '']);
@@ -974,7 +974,7 @@ $('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); };
 const FIELDS = [
   ['tip','Tip'],['spatiu','Spațiu'],['data','Data'],['start','Ora început'],['sfarsit','Ora sfârșit'],
   ['status','Status'],['optiunePana','Opțiune valabilă până la'],['responsabil','Responsabil'],
-  ['client','Client / partener'],['contact','Contact'],['adusDe','Contact adus de'],['participanti','Participanți estimați'],
+  ['client','Client / partener'],['contact','Contact'],['adusDe','Contact adus de'],['sprijinTehnic','Sprijin tehnic la montaj'],['participanti','Participanți estimați'],
   ['valoare','Valoare (lei)'],['avans','Avans (lei)'],['pachetBar','Pachet bar inclus (lei)'],['barInterval','Bar: interval'],
   ['bilPlatforma','Bilete: platformă'],['bilLink','Bilete: link'],['capacitate','Capacitate'],['bilVandute','Bilete vândute'],
   ['tehnic','Necesar tehnic / de închiriat de la noi'],['bar','Bar și consum'],['note','Note'],
@@ -992,13 +992,15 @@ function pubTitle(e) { return shown(e.titluPublic) || shown(e.titlu); }
 const DE_TURA = 'Omul de tură', ZILE_OPTIUNE = 10;
 /* o opțiune nouă ține minim 10 zile, dar nu după ziua evenimentului */
 function optMin(data) { const m = addDaysIso(S.data.now, ZILE_OPTIUNE); return data && data < m ? data : m; }
-const MONTAJ_KEYS = ['montaj','demontaj','deschide','inchide','echipOrg','configurare','contactTehnic','montajData','proba','acces'];
+const MONTAJ_KEYS = ['montaj','demontaj','deschide','inchide','echipOrg','sprijinTehnic','configurare','contactTehnic','montajData','proba','acces'];
 function dayN(d) { const p = String(d || '').split('-').map(Number); return p.length === 3 ? Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5) : 0; }
 function durMin(m) { m = Math.round(m); if (m <= 0) return ''; const h = Math.floor(m / 60), mi = m % 60; return [h && h + ' h', mi && mi + ' min'].filter(Boolean).join(' '); }
 function shortDay(d) { const p = String(d || '').split('-').map(Number); if (p.length !== 3) return ''; const dt = new Date(p[0], p[1] - 1, p[2]); return RO_ZILE[dt.getDay()].slice(0, 3).toLowerCase() + ' ' + p[2] + ' ' + RO_LUNI[p[1] - 1].slice(0, 3); }
 const ECHIP_OPTS = ['Vin cu tot echipamentul lor', 'Parțial: închiriază o parte de la noi', 'Nu: închiriază tot de la noi'];
 const ECHIP_VECHI = { 'Da, tot': ECHIP_OPTS[0], 'Parțial': ECHIP_OPTS[1], 'Nu, folosesc ce avem': ECHIP_OPTS[2] };
 const echipVal = v => ECHIP_VECHI[v] || v || '';
+const SPRIJIN_OPTS = ['Nu: montează ei', 'Da: tehnician de la noi (cost suplimentar)'];
+const areTehnician = v => /^Da/.test(v || '');
 const inchiriaza = v => { const x = echipVal(v); return x === ECHIP_OPTS[1] || x === ECHIP_OPTS[2]; };
 const CONFIG_OPTS = ['Scaune (teatru)', 'Mese (cabaret)', 'În picioare', 'Mixt', 'Altfel (vezi note)'];
 function minOf(t) { const m = /^(\d{1,2}):(\d{2})/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; }
@@ -1029,6 +1031,7 @@ function montajHtml(e) {
   r.push(['Demontaj, de la noi', e.inchide ? esc(e.inchide) + ' <span class="hint">supraveghează, preia echipamentele, închide</span>' : esc(DE_TURA) + ' <span class="hint">cine e pe grafic în ziua aceea</span>']);
   if (e.echipOrg) r.push(['Echipament', esc(echipVal(e.echipOrg))]);
   if (inchiriaza(e.echipOrg) && shown(e.tehnic)) r.push(['De închiriat de la noi', esc(shown(e.tehnic))]);
+  if (e.sprijinTehnic) r.push(['Sprijin tehnic', esc(e.sprijinTehnic)]);
   if (e.configurare) r.push(['Sala', esc(e.configurare)]);
   if (e.contactTehnic) r.push(['Tehnic organizator', esc(shown(e.contactTehnic))]);
   return `<div class="sec"><h4>Montaj și demontaj</h4><div class="kv">${r.map(([a, b]) => `<div>${a}</div><div>${b}</div>`).join('')}</div></div>`;
@@ -1294,8 +1297,10 @@ function openForm(e, prefill) {
       </div>
       <div class="row2">
         <div><label>Echipament</label><select id="f_echipOrg">${opts(ECHIP_OPTS, echipVal(v.echipOrg), '—')}</select></div>
-        <div><label>Configurare sală</label><select id="f_configurare">${opts(CONFIG_OPTS, v.configurare, '—')}</select></div>
+        <div><label>Sprijin tehnic la montaj</label><select id="f_sprijinTehnic">${opts(SPRIJIN_OPTS, v.sprijinTehnic, '—')}</select></div>
       </div>
+      <div class="hint" id="tehCost" style="display:none">Tehnicianul nostru înseamnă cost de om: include-l în Valoare și în contract, separat de chiria echipamentelor.</div>
+      <label>Configurare sală</label><select id="f_configurare">${opts(CONFIG_OPTS, v.configurare, '—')}</select>
       <div id="tehBox"><label id="tehLbl">Ce închiriază de la noi</label><textarea id="f_tehnic" rows="3" placeholder="ex. 2 microfoane wireless, proiector, 4 monitoare de scenă, mixer">${f('tehnic')}</textarea>
         <div class="hint">Lista ajunge la omul de la montaj în brief, ca să pregătească echipamentele din timp.</div></div>
       <label>Contact tehnic organizator (nume, telefon)</label><input id="f_contactTehnic" value="${f('contactTehnic')}" placeholder="omul lor de sunet / lumini">
@@ -1365,6 +1370,8 @@ function openForm(e, prefill) {
   bindPublic(isNew, v);
   const tehSync = () => { const ok = inchiriaza($('f_echipOrg').value); $('tehBox').style.display = ok || $('f_tehnic').value.trim() ? '' : 'none'; $('tehLbl').textContent = ok ? 'Ce închiriază de la noi' : 'Necesar tehnic'; };
   $('f_echipOrg').addEventListener('change', tehSync); tehSync();
+  const costSync = () => { $('tehCost').style.display = areTehnician($('f_sprijinTehnic').value) ? '' : 'none'; };
+  $('f_sprijinTehnic').addEventListener('change', costSync); costSync();
 }
 function bindPublic(isNew, v) {
   let manual = !!v.vizibil;
