@@ -122,6 +122,8 @@
   .mod input{width:auto;margin:0;accent-color:var(--green)}
   .mod.on{background:#DDEBE3;border-color:#B9D3C4;color:var(--green)}
   .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  body.ro #fab, body.ro #dEdit, body.ro #dDup, body.ro #dArch, body.ro #taskAddBtn, body.ro #riderAddBtn, body.ro #modsEdit{display:none !important}
+  body.ro .task input, body.ro [data-rid], body.ro #modsView{pointer-events:none}
   .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 12px 12px;margin-top:14px}
   .boxh{font-family:Fraunces,serif;color:var(--green);font-size:16px;margin:8px 0 0}
   .sec{margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
@@ -321,9 +323,9 @@ function call(fn, args, ok) {
 /* ---------- încărcare ---------- */
 function load(silent) {
   if (silent) {
-    ACTIONS.getData().then(r => { S.data = r; render(); }).catch(() => {});
+    ACTIONS.getData().then(r => { S.data = r; document.body.classList.toggle('ro', !!(r.user && r.user.readonly)); render(); }).catch(() => {});
   } else {
-    call('getData', [], r => { S.data = r; if (!S.month) { const t = parseIso(r.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); } render(); });
+    call('getData', [], r => { S.data = r; document.body.classList.toggle('ro', !!(r.user && r.user.readonly)); if (!S.month) { const t = parseIso(r.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); } render(); });
   }
 }
 

@@ -70,6 +70,7 @@ function doPost(e) {
     if (!me) return json_({ error: 'not_member', email: who.email });
     USER_ = me;
     if (req.action === 'bootstrap') return json_(getData());
+    if (me.readonly) return json_({ error: 'readonly', message: 'Ai acces doar pentru citire.' });
     if (req.action === 'save') return json_(saveEvent(req.event || {}, req.opts || {}));
     if (req.action === 'archive') return json_(archiveEvent(String(req.id || ''), req.expectedModified));
     if (req.action === 'task') return json_(taskUpdate(String(req.id || ''), req.patch || {}));
@@ -108,8 +109,9 @@ function verify_(token) {
 function member_(email) {
   const sh = ss_().getSheetByName(SHEET_TEAM);
   const rows = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 3).getDisplayValues();
-  const r = rows.find(x => String(x[1]).trim().toLowerCase() === email && String(x[2]).trim().toLowerCase() === 'activ');
-  return r ? { email: email, name: String(r[0]).trim() || email } : null;
+  const ok = ['activ', 'doar citire'];
+  const r = rows.find(x => String(x[1]).trim().toLowerCase() === email && ok.indexOf(String(x[2]).trim().toLowerCase()) >= 0);
+  return r ? { email: email, name: String(r[0]).trim() || email, readonly: String(r[2]).trim().toLowerCase() === 'doar citire' } : null;
 }
 
 /* ---------- API ---------- */
