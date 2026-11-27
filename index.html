@@ -720,7 +720,8 @@ function renderHome() {
   $('view').innerHTML = h;
   $('view').querySelectorAll('[data-go]').forEach(b => b.onclick = () => setView(b.dataset.go));
   $('hBrief').onclick = () => openBrief(today);
-  $('hProg').onclick = () => openProgram(today.slice(0, 7));
+  // spre finalul lunii, dacă nu mai e nimic public de azi încolo, programul se deschide direct pe luna următoare
+  $('hProg').onclick = () => { const ym = today.slice(0, 7); openProgram(publicEvents(ym).some(e => e.data >= today) ? ym : ymAdd(ym, 1)); };
   $('view').querySelectorAll('.rowev, .todo[data-id]').forEach(r => r.onclick = () => openDetail(r.dataset.id));
   bindTaskChecks($('view'), renderHome);
 }
@@ -850,8 +851,9 @@ function openProgram(ym, tab) {
         <b>${esc(shortDay(e.data))} · ${esc(e.acces ? 'acces ' + e.acces + ', ' : '')}${esc(e.start)}</b> · ${esc(e.spatiu)}
         ${e.aprobatPublicare === 'DA' ? '<span class="ready ok">Aprobat</span>' : '<span class="ready part">De aprobat</span>'}${e.status === 'Opțiune' ? '<span class="ready bad">încă opțiune</span>' : ''}
         <div class="t">${esc(pubTitle(e))}</div>${lips.length ? `<div class="hint">Lipsește: ${lips.join(', ')}</div>` : ''}</div>`;
-    }).join('') : '<div class="empty">Niciun eveniment public în această lună.</div>';
-    h += `<div class="actions"><button class="btn pri" id="pCopy" ${ok.length ? '' : 'disabled'}>Copiază textul</button><button class="btn sec" id="pCsv" ${ok.length ? '' : 'disabled'}>Descarcă tabel (CSV)</button></div>`;
+    }).join('') : '<div class="empty">Niciun eveniment public în ' + esc(lbl) + '. Apasă „luna următoare”.</div>';
+    if (all.length) h += `<div class="actions"><button class="btn pri" id="pCopy" ${ok.length ? '' : 'disabled'}>Copiază textul</button><button class="btn sec" id="pCsv" ${ok.length ? '' : 'disabled'}>Descarcă tabel (CSV)</button></div>` +
+      (ok.length ? '' : '<div class="hint">Butoanele se activează după ce aprobi pentru publicare cel puțin un eveniment (în formular, la Program public).</div>');
   } else {
     const ids = new Set(S.data.events.filter(e => e.status !== 'Anulat').map(e => e.id));
     const ts = (S.data.tasks || []).filter(t => t.modul === 'comunicare' && ids.has(t.eventId) && t.stare !== 'Anulată' && t.termen && t.termen.slice(0, 7) === ym)
