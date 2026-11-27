@@ -25,7 +25,7 @@
   button,input,select,textarea{font:inherit;color:inherit}
   header{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 14px 12px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
   .hin{max-width:1100px;margin:0 auto}
-  .top{display:flex;align-items:center;gap:8px}
+  .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .brand{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
   .brand img{height:22px;width:auto;display:block;max-width:100%}
   .brand span{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--stone);border-left:1px solid rgba(255,255,255,.25);padding-left:10px;white-space:nowrap}
@@ -36,8 +36,35 @@
   .iconbtn svg{width:17px;height:17px;flex:none}
   .iconbtn .lbl{display:none}
   @media (min-width:700px){ .iconbtn .lbl{display:inline} }
-  .tabs{display:flex;gap:3px;margin-top:12px;background:rgba(0,0,0,.18);border-radius:12px;padding:3px}
-  .tab{flex:1;background:transparent;border:0;color:rgba(255,255,255,.8);border-radius:9px;padding:8px 0;font-weight:700;font-size:14px;cursor:pointer}
+  .tabs{display:flex;gap:3px;margin-top:12px;background:rgba(0,0,0,.18);border-radius:12px;padding:3px;order:10;flex-basis:100%}
+  .tab{flex:1;background:transparent;border:0;color:rgba(255,255,255,.8);border-radius:9px;padding:8px 0;font-weight:700;font-size:13.5px;cursor:pointer;white-space:nowrap}
+  .tab:hover{color:#fff}
+  .tab .s{display:none}
+  @media (max-width:420px){ .tab .l{display:none} .tab .s{display:inline} }
+  .newbtn{display:none;background:var(--red);color:#fff;border:0;border-radius:10px;height:34px;padding:0 14px;font-weight:700;font-size:13px;cursor:pointer;align-items:center;gap:6px}
+  .newbtn:hover{filter:brightness(1.08)}
+  .who{display:none;font-size:12px;font-weight:600;color:rgba(255,255,255,.75);margin:0 4px}
+  kbd{font:600 11px Manrope,sans-serif;border:1px solid rgba(0,0,0,.18);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:#fff;color:var(--muted)}
+  @media (min-width:1024px){
+    header{padding:10px 24px}
+    .hin{max-width:1440px}
+    .tabs{order:0;flex-basis:auto;margin:0 auto 0 28px;padding:3px}
+    .tab{flex:none;padding:7px 16px;font-size:14px}
+    .brand{flex:none}
+    .newbtn{display:inline-flex}
+    .who{display:inline}
+    .fab{display:none !important}
+    main{max-width:1440px !important;padding:18px 24px 60px !important}
+    .filters{padding:10px max(24px, calc((100vw - 1440px) / 2 + 24px)) !important}
+    .narrow{max-width:880px;margin:0 auto}
+    .overlay{align-items:stretch !important;justify-content:flex-end !important;background:rgba(20,28,24,.28)}
+    .sheet{max-width:none !important;width:min(640px,100vw) !important;max-height:none !important;height:100vh;border-radius:0 !important;padding:26px 30px 40px !important;box-shadow:-12px 0 32px rgba(0,0,0,.18);animation:slidein .16s ease-out}
+    .sheet.wide{width:min(860px,100vw) !important}
+    .sheet h3{font-size:24px}
+  }
+  @keyframes slidein{from{transform:translateX(40px);opacity:.4}}
+  body.ro .newbtn{display:none !important}
+  .card:hover{box-shadow:0 2px 8px rgba(36,56,46,.14),0 0 0 1px rgba(36,56,46,.06)}
   .tab.on{background:#fff;color:var(--green);box-shadow:0 1px 3px rgba(0,0,0,.2)}
   .filters{display:flex;gap:6px;overflow-x:auto;padding:10px max(14px, calc((100vw - 1100px) / 2 + 12px));background:var(--paper);border-bottom:1px solid var(--line);scrollbar-width:none}
   .filters::-webkit-scrollbar{display:none}
@@ -46,7 +73,7 @@
   .chip.off{opacity:.4}
   .chip select{border:0;background:transparent;font-weight:600;font-size:13px;padding:0;outline:none}
   main{max-width:1100px;margin:0 auto;padding:12px 12px 110px}
-  .search{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;margin-bottom:12px}
+  .search{display:block;width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;margin-bottom:12px}
   /* Agenda */
   .dayhead{font-family:Fraunces,serif;font-weight:600;font-size:16px;margin:18px 4px 8px;color:var(--green);display:flex;justify-content:space-between;align-items:baseline}
   .dayhead .today{font-family:Manrope;font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:6px;padding:2px 7px}
@@ -90,6 +117,74 @@
   .dots i.cancel{opacity:.35}
   @media (max-width:599px){ .cell{min-height:52px;text-align:center} .cell .n{font-size:13px} .dots{justify-content:center} }
   @media (min-width:800px){ .cell{min-height:110px} .pill{font-size:12px} }
+  /* Acasă */
+  .hello{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin:4px 2px 14px}
+  .hello h2{font-family:Fraunces,serif;color:var(--green);margin:0;font-size:24px}
+  .hello .hint{font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+  .kpi:last-child:nth-child(odd){grid-column:span 2}
+  @media (min-width:700px){ .kpis{grid-template-columns:repeat(5,1fr);gap:12px} .kpi:last-child:nth-child(odd){grid-column:auto} }
+  @media (max-width:600px){ .panel h4 small{display:none} }
+  .kpi{background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 1px 2px rgba(36,56,46,.08);cursor:pointer}
+  .kpi .k{font-size:12px;font-weight:700;color:var(--muted)}
+  .kpi .v{font-family:Fraunces,serif;font-size:26px;font-weight:700;color:var(--green);margin-top:2px;line-height:1.1}
+  .kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+  .kpi.bad .v{color:var(--red)}
+  .hgrid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media (min-width:1024px){ .hgrid{grid-template-columns:1.25fr 1fr 1fr;gap:16px;align-items:start} .span2{grid-column:span 2} .span3{grid-column:span 3} }
+  .panel{background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 1px 2px rgba(36,56,46,.08)}
+  .panel h4{font-family:Fraunces,serif;color:var(--green);font-size:17px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .panel h4 small{font-family:Manrope;font-size:12px;color:var(--muted);font-weight:600}
+  .panel h4 a{font-family:Manrope;font-size:12px;color:var(--green);font-weight:700;cursor:pointer}
+  .panel h5{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:14px 0 6px}
+  .panel h5:first-of-type{margin-top:0}
+  .rowev{display:flex;gap:10px;align-items:flex-start;padding:8px 6px;border-radius:10px;cursor:pointer}
+  .rowev:hover{background:var(--paper)}
+  .rowev .t{font-weight:800;font-size:13px;min-width:44px;color:var(--ink);padding-top:1px;text-align:right}
+  .rowev .t small{display:block;font-weight:700;font-size:11px;color:var(--muted);text-transform:lowercase}
+  .rowev .b{width:4px;align-self:stretch;border-radius:4px;flex:none}
+  .rowev .x{flex:1;min-width:0}
+  .rowev .x b{display:block;font-size:14px;overflow-wrap:anywhere}
+  .rowev .x span{font-size:12px;color:var(--muted)}
+  .rowev.cancel b{text-decoration:line-through;color:var(--muted)}
+  .nothing{color:var(--muted);font-size:13px;padding:6px 2px}
+  .occ{display:grid;grid-template-columns:150px 1fr 90px;gap:8px 12px;align-items:center;font-size:13px}
+  .occ .bar{height:10px;background:var(--cream);border-radius:6px;overflow:hidden}
+  .occ .bar i{display:block;height:100%;border-radius:6px}
+  .occ .n{color:var(--muted);text-align:right;white-space:nowrap}
+  @media (max-width:600px){ .occ{grid-template-columns:100px 1fr 70px} }
+  .todo{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 6px;border-radius:8px;cursor:pointer}
+  .todo:hover{background:var(--paper)}
+  .todo i{width:8px;height:8px;border-radius:50%;flex:none}
+  .shortcuts{display:none;font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
+  @media (min-width:1024px) and (hover:hover){ .shortcuts{display:block} }
+  /* Săptămână */
+  .wnav{display:flex;align-items:center;gap:8px;margin:2px 2px 12px;flex-wrap:wrap}
+  .wnav h2{font-family:Fraunces,serif;margin:0;font-size:20px;color:var(--green);flex:1}
+  .wgrid{display:grid;grid-template-columns:150px repeat(7,minmax(0,1fr));background:var(--line);gap:1px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .wgrid .wh{background:var(--paper);padding:8px 10px;font-size:12px;font-weight:700;color:var(--muted)}
+  .wgrid .wh b{display:block;font-family:Fraunces,serif;font-size:18px;color:var(--ink)}
+  .wgrid .wh.today{background:#fff}
+  .wgrid .wh.today b{color:var(--red)}
+  .wgrid .sp{background:var(--paper);padding:10px;font-size:13px;font-weight:700;display:flex;gap:8px;align-items:flex-start}
+  .wgrid .sp i{width:10px;height:10px;border-radius:50%;margin-top:3px;flex:none}
+  .wgrid .wc{background:#fff;min-height:84px;padding:5px;display:flex;flex-direction:column;gap:4px;cursor:pointer}
+  .wgrid .wc.today{background:#FFFDF8}
+  .wgrid .wc:hover{background:#FAF7F0}
+  .wgrid .wc .add{display:none;color:var(--muted);font-size:12px;font-weight:700;text-align:center;padding:4px;border:1px dashed var(--line);border-radius:8px;margin-top:auto}
+  .wgrid .wc:hover .add{display:block}
+  body.ro .wgrid .wc .add{display:none !important}
+  .wb{border-radius:8px;padding:5px 7px;font-size:12px;line-height:1.3;border-left:4px solid;background:#F6F3EC;cursor:pointer}
+  .wb:hover{filter:brightness(.97)}
+  .wb .tm{font-weight:800;font-size:11.5px;color:var(--muted)}
+  .wb .tt{font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .wb.opt{background:#fff;border-left-style:dashed;box-shadow:inset 0 0 0 1px #E6D9BD}
+  .wb.cancel{opacity:.45}
+  .wb.cancel .tt{text-decoration:line-through}
+  .wb.mont{background:repeating-linear-gradient(135deg,#F3EFE7 0 6px,#EAE4D8 6px 12px)}
+  .wlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+  .wlegend span{display:inline-flex;align-items:center;gap:6px}
+  .wlegend i{display:inline-block;width:18px;height:10px;border-radius:3px;background:#F6F3EC;border-left:3px solid var(--green)}
   /* FAB */
   .fab{position:fixed;right:18px;bottom:calc(20px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--red);color:#fff;font-size:30px;line-height:58px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer;z-index:6}
   /* Modal */
@@ -177,20 +272,24 @@
 <header><div class="hin">
   <div class="top">
     <div class="brand"><img src="logo-white.png" alt="Republica | 1963"><span>Calendar</span></div>
-    <button class="iconbtn" id="btnToday" title="Azi">Azi</button>
+    <div class="tabs">
+      <button class="tab on" data-view="acasa">Acasă</button>
+      <button class="tab" data-view="agenda">Agendă</button>
+      <button class="tab" data-view="sapt"><span class="l">Săptămână</span><span class="s">Săpt.</span></button>
+      <button class="tab" data-view="luna">Lună</button>
+      <button class="tab" data-view="sarcini">Sarcini</button>
+    </div>
+    <span class="who" id="who"></span>
+    <button class="newbtn" id="btnNew" title="Eveniment nou (N)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Eveniment</button>
+    <button class="iconbtn" id="btnToday" title="Azi (T)">Azi</button>
     <button class="iconbtn" id="btnRefresh" title="Reîncarcă" aria-label="Reîncarcă"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
     <button class="iconbtn userbtn" id="btnInstall" title="Pune aplicația pe ecran" aria-label="Instalează" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 20h14"/></svg><span class="lbl">Instalează</span></button>
     <button class="iconbtn userbtn" id="btnOut" title="Ieși din cont" aria-label="Ieși din cont"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg><span class="lbl">Ieși</span></button>
   </div>
-  <div class="tabs">
-    <button class="tab on" data-view="agenda">Agendă</button>
-    <button class="tab" data-view="luna">Lună</button>
-    <button class="tab" data-view="sarcini">Sarcini</button>
-  </div>
 </div></header>
 <div class="filters" id="filters"></div>
 <main>
-  <input class="search" id="q" type="search" placeholder="Caută după titlu, client, note…">
+  <input class="search" id="q" type="search" placeholder="Caută după titlu, client, note…  (tastă /)">
   <div id="view"></div>
 </main>
 <button class="fab" id="fab" aria-label="Eveniment nou">+</button>
@@ -212,10 +311,9 @@ const RO_ZILE = ['Duminică','Luni','Marți','Miercuri','Joi','Vineri','Sâmbăt
 const RO_ZILE_SC = ['L','Ma','Mi','J','V','S','D'];
 const RO_LUNI = ['ianuarie','februarie','martie','aprilie','mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie'];
 const S = {
-  data: null, view: 'agenda', month: null, selDay: null,
+  data: null, view: 'acasa', month: null, selDay: null, week: null,
   hiddenSpaces: new Set(), resp: '', showCancelled: true, showPast: false, q: ''
 };
-try { const v = localStorage.getItem('rcal_view'); if (v) S.view = v; } catch (e) {}
 
 /* ---------- utilitare ---------- */
 const $ = id => document.getElementById(id);
@@ -358,8 +456,16 @@ function renderFilters() {
 /* ---------- randare ---------- */
 function render() {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === S.view));
+  const noFilters = S.view === 'acasa' || S.view === 'sarcini';
+  $('filters').style.display = noFilters ? 'none' : '';
+  $('q').style.display = noFilters ? 'none' : '';
+  if (S.data.user) $('who').textContent = S.data.user.name + (S.data.user.readonly ? ' · doar citire' : '');
   renderFilters();
-  if (S.view === 'luna') renderMonth(); else if (S.view === 'sarcini') renderTasks(); else renderAgenda();
+  if (S.view === 'luna') renderMonth();
+  else if (S.view === 'sarcini') renderTasks();
+  else if (S.view === 'sapt') renderWeek();
+  else if (S.view === 'acasa') renderHome();
+  else renderAgenda();
 }
 
 function cardHtml(e) {
@@ -403,7 +509,7 @@ function renderAgenda() {
   if (past.length) h += `<button class="linkbtn" id="tPast">${S.showPast ? 'Ascunde evenimentele trecute' : 'Arată evenimentele trecute (' + past.length + ')'}</button>`;
   if (S.showPast) h += groupHtml(past.slice().reverse().slice(0, 200).reverse());
   h += next.length ? groupHtml(next) : '<div class="empty">Niciun eveniment programat de azi înainte.</div>';
-  $('view').innerHTML = h;
+  $('view').innerHTML = '<div class="narrow">' + h + '</div>';
   if ($('tPast')) $('tPast').onclick = () => { S.showPast = !S.showPast; renderAgenda(); };
   bindCards($('view'));
 }
@@ -435,7 +541,7 @@ function renderMonth() {
     ev.slice(0, maxPills).forEach(e => {
       const c = esc(colorOf(e.spatiu));
       const cls = e.status === 'Anulat' ? 'cancel' : (e.status === 'Opțiune' ? 'opt' + (optState(e) === 'expired' ? ' expired' : '') : '');
-      h += `<div class="pill ${cls}" style="background:${c};border-color:${c}">${maxPills > 3 ? esc(e.start) + ' ' : ''}${esc(shown(e.titlu))}</div>`;
+      h += `<div class="pill ${cls}" data-id="${esc(e.id)}" title="${esc(timeRange(e) + ' · ' + shown(e.titlu))}" style="background:${c};border-color:${c}">${maxPills > 3 ? esc(e.start) + ' ' : ''}${esc(shown(e.titlu))}</div>`;
     });
     if (ev.length > maxPills) h += `<div class="more">+${ev.length - maxPills}</div>`;
     h += `</div>`;
@@ -444,6 +550,7 @@ function renderMonth() {
   $('view').innerHTML = h;
   $('mPrev').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() - 1, 1); S.selDay = null; renderMonth(); };
   $('mNext').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() + 1, 1); S.selDay = null; renderMonth(); };
+  $('view').querySelectorAll('.pill[data-id]').forEach(p => p.onclick = ev => { ev.stopPropagation(); openDetail(p.dataset.id); });
   $('view').querySelectorAll('.cell').forEach(c => c.onclick = () => { S.selDay = c.dataset.day; renderMonth(); $('dayPanel').scrollIntoView({behavior: 'smooth', block: 'start'}); });
   if (S.selDay) {
     const ev = byDay[S.selDay] || [];
@@ -455,8 +562,153 @@ function renderMonth() {
   }
 }
 
+/* ---------- Acasă ---------- */
+function lei0(n) { return (Math.round(Number(n) || 0)).toLocaleString('ro-RO') + ' lei'; }
+function evRoles(e, name) {
+  return [e.responsabil === name && 'responsabil', e.deschide === name && 'montaj', e.inchide === name && 'demontaj'].filter(Boolean);
+}
+function rowEvHtml(e, name, withDay) {
+  const r = name ? evRoles(e, name) : [];
+  const bits = [e.spatiu];
+  if (e._montaj) bits.push('montaj pentru ' + shortDay(e._montaj));
+  else {
+    if (e.status !== 'Confirmat') bits.push(e.status === 'Opțiune' ? 'opțiune' : e.status.toLowerCase());
+    if (e.montaj) bits.push('montaj ' + (e.montajData ? shortDay(e.montajData) + ' ' : '') + e.montaj);
+    if (e.acces) bits.push('acces ' + e.acces);
+  }
+  if (r.length) bits.push('tu: ' + r.join(', '));
+  return `<div class="rowev ${e.status === 'Anulat' ? 'cancel' : ''}" data-id="${esc(e.id)}"><span class="t">${withDay ? '<small>' + esc(shortDay(e.data).split(' ').slice(0, 2).join(' ')) + '</small>' : ''}${esc(e.start || '—')}</span><span class="b" style="background:${esc(colorOf(e.spatiu))}"></span><div class="x"><b>${esc(shown(e.titlu))}</b><span>${esc(bits.filter(Boolean).join(' · '))}</span></div></div>`;
+}
+function allWithMontaj() {
+  return S.data.events.concat(S.data.events.filter(e => e.montajData && e.montaj && e.montajData < e.data && e.status !== 'Anulat')
+    .map(e => Object.assign({}, e, { _montaj: e.data, data: e.montajData, start: e.montaj, sfarsit: '', titlu: 'Montaj: ' + shown(e.titlu) })));
+}
+function occMinutes(e) {
+  const st = minOf(e.start); if (st === null) return 120;
+  const md = e.montajData && e.montaj && e.montajData < e.data ? (dayN(e.data) - dayN(e.montajData)) * 1440 : 0;
+  const s = (minOf(e.montaj) !== null ? minOf(e.montaj) : st) - md;
+  let f = minOf(e.demontaj); if (f === null) f = minOf(e.sfarsit); if (f === null) f = st + 120; if (f <= st) f += 1440;
+  return Math.max(30, f - s);
+}
+function renderHome() {
+  const D = S.data, today = D.now, tom = addDaysIso(today, 1), me = D.user ? D.user.name : '', ro = D.user && D.user.readonly;
+  const live = D.events.filter(e => e.status !== 'Anulat');
+  const all = allWithMontaj().filter(e => e.status !== 'Anulat').sort((a, b) => (a.data + (a.start || '')).localeCompare(b.data + (b.start || '')));
+  const ym = today.slice(0, 7), lunaN = RO_LUNI[Number(ym.slice(5)) - 1];
+  const inMonth = live.filter(e => e.data.slice(0, 7) === ym);
+  const conf = inMonth.filter(e => e.status === 'Confirmat').length, optN = inMonth.filter(e => e.status === 'Opțiune').length;
+  const valLuna = inMonth.reduce((a, e) => a + (Number(e.valoare) || 0), 0);
+  const viit = live.filter(e => e.data >= today && Number(e.valoare) > 0);
+  const deIncasat = viit.reduce((a, e) => a + Math.max(0, (Number(e.valoare) || 0) - (Number(e.avans) || 0)), 0);
+  const liveIds = new Set(live.map(e => e.id));
+  const openT = (D.tasks || []).filter(t => t.stare === 'De făcut' && liveIds.has(t.eventId));
+  const lateAll = openT.filter(t => t.termen && t.termen < today);
+  const mine = openT.filter(t => t.responsabil === me);
+  const lateMine = mine.filter(t => t.termen && t.termen < today);
+  const opts = live.filter(e => e.status === 'Opțiune').sort((a, b) => (a.optiunePana || '').localeCompare(b.optiunePana || ''));
+  const h0 = new Date().getHours();
+  const hi = h0 < 12 ? 'Bună dimineața' : h0 < 18 ? 'Bună ziua' : 'Bună seara';
+
+  let h = `<div class="hello"><h2>${hi}${me ? ', ' + esc(me) : ''}</h2><span class="hint">${esc(longDate(today))}</span></div>`;
+  h += `<div class="kpis">
+    <div class="kpi" data-go="luna"><div class="k">Evenimente în ${lunaN}</div><div class="v">${conf + optN}</div><div class="s">${conf} confirmate · ${optN} opțiuni</div></div>
+    <div class="kpi" data-go="luna"><div class="k">Valoare contractată în ${lunaN}</div><div class="v">${lei0(valLuna)}</div><div class="s">din câmpul Valoare</div></div>
+    <div class="kpi" data-go="agenda"><div class="k">De încasat, de azi înainte</div><div class="v">${lei0(deIncasat)}</div><div class="s">valoare minus avans · ${viit.length} evenimente</div></div>
+    <div class="kpi ${(ro ? lateAll : lateMine).length ? 'bad' : ''}" data-go="sarcini"><div class="k">${ro ? 'Sarcini întârziate (echipa)' : 'Sarcinile tale întârziate'}</div><div class="v">${(ro ? lateAll : lateMine).length}</div><div class="s">${ro ? openT.length + ' deschise în total' : mine.length + ' deschise ale tale'}</div></div>
+    <div class="kpi ${opts.some(e => optState(e) === 'expired') ? 'bad' : ''}" data-go="agenda"><div class="k">Opțiuni deschise</div><div class="v">${opts.length}</div><div class="s">${opts.filter(e => optState(e) === 'expired').length} expirate</div></div>
+  </div>`;
+
+  // Azi și mâine
+  const day = d => all.filter(e => e.data === d);
+  const dayList = (d, lbl) => `<h5>${lbl} · ${esc(shortDay(d))}</h5>` + (day(d).length ? day(d).map(e => rowEvHtml(e, me)).join('') : '<div class="nothing">Nimic programat.</div>');
+  h += `<div class="hgrid"><section class="panel"><h4>Azi și mâine <a data-go="sapt">Săptămâna →</a></h4>${dayList(today, 'Azi')}${dayList(tom, 'Mâine')}`;
+  const next7 = all.filter(e => e.data > tom && e.data <= addDaysIso(today, 7));
+  h += `<h5>Până ${esc(shortDay(addDaysIso(today, 7)))}</h5>` + (next7.length ? next7.map(e => rowEvHtml(e, me, true)).join('') : '<div class="nothing">Nimic programat.</div>') + `</section>`;
+
+  // Sarcini
+  if (!ro) {
+    const show = mine.filter(t => !t.termen || t.termen <= addDaysIso(today, 3)).sort((a, b) => (a.termen || '9').localeCompare(b.termen || '9'));
+    h += `<section class="panel"><h4>Sarcinile tale <a data-go="sarcini">Toate →</a></h4>` +
+      (show.length ? show.slice(0, 6).map(t => taskHtml(t, true)).join('') + (show.length > 6 ? `<div class="nothing">și încă ${show.length - 6} în tabul Sarcini</div>` : '') : '<div class="nothing">Nimic întârziat sau urgent. Bravo.</div>') + `</section>`;
+  } else {
+    const per = {};
+    lateAll.forEach(t => per[t.responsabil || '—'] = (per[t.responsabil || '—'] || 0) + 1);
+    const rows = Object.entries(per).sort((a, b) => b[1] - a[1]);
+    h += `<section class="panel"><h4>Sarcini întârziate pe oameni <a data-go="sarcini">Toate →</a></h4>` +
+      (rows.length ? rows.map(([n, c]) => `<div class="todo"><i style="background:var(--red)"></i><span style="flex:1">${esc(n)}</span><b>${c}</b></div>`).join('') : '<div class="nothing">Nicio sarcină întârziată.</div>') + `</section>`;
+  }
+
+  // De rezolvat
+  const soon = live.filter(e => e.data >= today && e.data <= addDaysIso(today, 14));
+  const issues = [];
+  opts.filter(e => e.optiunePana && e.optiunePana <= addDaysIso(today, 2)).forEach(e => issues.push([e, optState(e) === 'expired' ? 'Opțiune expirată pe ' + shortDay(e.optiunePana) : 'Opțiunea expiră ' + shortDay(e.optiunePana), 'var(--red)']));
+  soon.filter(e => (e.montaj || e.demontaj) && (!e.deschide || !e.inchide)).forEach(e => issues.push([e, 'Lipsește omul de la ' + (!e.deschide ? 'montaj' : 'demontaj'), 'var(--rust)']));
+  soon.filter(e => !e.sfarsit).forEach(e => issues.push([e, 'Fără oră de final', 'var(--amber)']));
+  soon.filter(e => !e.responsabil).forEach(e => issues.push([e, 'Fără responsabil', 'var(--rust)']));
+  h += `<section class="panel"><h4>De rezolvat <small>următoarele 14 zile</small></h4>` +
+    (issues.length ? issues.slice(0, 12).map(([e, why, c]) => `<div class="todo" data-id="${esc(e.id)}"><i style="background:${c}"></i><span style="flex:1"><b>${esc(why)}</b><br><span class="hint">${esc(shown(e.titlu))} · ${esc(shortDay(e.data))}</span></span></div>`).join('') + (issues.length > 12 ? `<div class="nothing">și încă ${issues.length - 12}…</div>` : '')
+      : '<div class="nothing">Totul e în regulă.</div>') + `</section>`;
+
+  // Ocupare 30 de zile
+  const end30 = addDaysIso(today, 29);
+  const occ = D.lists.spatii.filter(sp => sp.name !== 'În afara locației').map(sp => {
+    const ev = live.filter(e => e.data >= today && e.data <= end30 && (e.spatiu === sp.name || e.spatiu === 'Toată locația'));
+    const days = new Set(ev.map(e => e.data)).size;
+    const hrs = Math.round(ev.reduce((a, e) => a + occMinutes(e), 0) / 60);
+    return { sp, days, hrs, n: ev.length };
+  });
+  h += `<section class="panel span3"><h4>Ocupare, următoarele 30 de zile <small>zile cu cel puțin un eveniment, inclusiv montaj</small></h4><div class="occ">` +
+    occ.map(o => `<div><b>${esc(o.sp.name)}</b></div><div class="bar"><i style="width:${Math.round(o.days / 30 * 100)}%;background:${esc(o.sp.color)}"></i></div><div class="n">${o.days}/30 zile · ${o.hrs} h</div>`).join('') + `</div></section>`;
+  h += `</div><div class="shortcuts">Scurtături: <kbd>N</kbd> eveniment nou · <kbd>/</kbd> caută · <kbd>T</kbd> azi · <kbd>1</kbd>–<kbd>5</kbd> taburi · <kbd>←</kbd> <kbd>→</kbd> săptămâna/luna · <kbd>Esc</kbd> închide</div>`;
+  $('view').innerHTML = h;
+  $('view').querySelectorAll('[data-go]').forEach(b => b.onclick = () => setView(b.dataset.go));
+  $('view').querySelectorAll('.rowev, .todo[data-id]').forEach(r => r.onclick = () => openDetail(r.dataset.id));
+  bindTaskChecks($('view'), renderHome);
+}
+
+/* ---------- Săptămână ---------- */
+function mondayOf(isoD) { const d = parseIso(isoD); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return iso(d); }
+function renderWeek() {
+  if (!S.week) S.week = mondayOf(S.data.now);
+  const days = [...Array(7)].map((_, i) => addDaysIso(S.week, i)), today = S.data.now;
+  const ev = filtered().filter(e => e.data >= days[0] && e.data <= days[6]);
+  const d0 = parseIso(days[0]), d6 = parseIso(days[6]);
+  const title = d0.getMonth() === d6.getMonth() ? `${d0.getDate()}–${d6.getDate()} ${RO_LUNI[d6.getMonth()]} ${d6.getFullYear()}` : `${d0.getDate()} ${RO_LUNI[d0.getMonth()].slice(0, 3)} – ${d6.getDate()} ${RO_LUNI[d6.getMonth()].slice(0, 3)} ${d6.getFullYear()}`;
+  let h = `<div class="wnav"><button class="navbtn" id="wPrev" title="Săptămâna trecută (←)">&#8249;</button><button class="navbtn" id="wNext" title="Săptămâna următoare (→)">&#8250;</button><h2>${title}</h2><button class="navbtn" id="wNow" style="padding:0 12px">Săptămâna asta</button></div>`;
+  if (window.innerWidth < 900) {
+    days.forEach(d => {
+      const l = ev.filter(e => e.data === d);
+      h += `<div class="dayhead"><span>${esc(longDate(d))}</span>${d === today ? '<span class="today">Azi</span>' : ''}</div>` + (l.length ? l.map(cardHtml).join('') : '<div class="nothing" style="padding:0 6px 6px">Liber.</div>');
+    });
+    $('view').innerHTML = h; bindWeekNav(); bindCards($('view')); return;
+  }
+  const spaces = S.data.lists.spatii.filter(sp => !S.hiddenSpaces.has(sp.name) && (sp.name !== 'În afara locației' || ev.some(e => e.spatiu === sp.name)));
+  h += `<div class="wgrid"><div class="wh"></div>` + days.map(d => { const x = parseIso(d); return `<div class="wh ${d === today ? 'today' : ''}">${RO_ZILE[x.getDay()]}<b>${x.getDate()} ${RO_LUNI[x.getMonth()].slice(0, 3)}</b></div>`; }).join('');
+  spaces.forEach(sp => {
+    h += `<div class="sp"><i style="background:${esc(sp.color)}"></i>${esc(sp.name)}</div>`;
+    days.forEach(d => {
+      const l = ev.filter(e => e.data === d && e.spatiu === sp.name);
+      h += `<div class="wc ${d === today ? 'today' : ''}" data-day="${d}" data-sp="${esc(sp.name)}">` + l.map(e => {
+        const cls = e._montaj ? 'mont' : e.status === 'Anulat' ? 'cancel' : e.status === 'Opțiune' ? 'opt' : '';
+        const tm = e._montaj ? 'montaj de la ' + e.start : (e.montaj && !e.montajData ? 'montaj ' + e.montaj + ' · ' : '') + timeRange(e);
+        return `<div class="wb ${cls}" data-id="${esc(e.id)}" style="border-left-color:${esc(colorOf(e.spatiu))}" title="${esc(shown(e.titlu))}"><div class="tm">${esc(tm)}${e.status === 'Opțiune' && !e._montaj ? ' · opțiune' : ''}</div><div class="tt">${esc(e._montaj ? 'Montaj: ' + shown(e.titlu).replace(/^Montaj: /, '') : shown(e.titlu))}</div></div>`;
+      }).join('') + `<div class="add">+ adaugă</div></div>`;
+    });
+  });
+  h += `</div><div class="wlegend"><span><i></i>confirmat</span><span><i style="background:#fff;outline:1px dashed #D8C9A8"></i>opțiune</span><span><i style="background:repeating-linear-gradient(135deg,#F3EFE7 0 4px,#EAE4D8 4px 8px)"></i>montaj în altă zi</span><span>Apasă pe o celulă goală ca să adaugi un eveniment în sala și ziua respectivă.</span></div>`;
+  $('view').innerHTML = h; bindWeekNav();
+  $('view').querySelectorAll('.wb').forEach(b => b.onclick = x => { x.stopPropagation(); openDetail(b.dataset.id); });
+  $('view').querySelectorAll('.wc').forEach(c => c.onclick = () => { if (!(S.data.user && S.data.user.readonly)) openForm(null, { data: c.dataset.day, spatiu: c.dataset.sp }); });
+}
+function bindWeekNav() {
+  $('wPrev').onclick = () => { S.week = addDaysIso(S.week, -7); renderWeek(); };
+  $('wNext').onclick = () => { S.week = addDaysIso(S.week, 7); renderWeek(); };
+  $('wNow').onclick = () => { S.week = mondayOf(S.data.now); renderWeek(); };
+}
+function setView(v) { S.view = v; render(); window.scrollTo({ top: 0 }); }
+
 /* ---------- modal ---------- */
-function openSheet(html) { $('sheet').innerHTML = html; $('ov').classList.add('show'); $('sheet').scrollTop = 0; }
+function openSheet(html, wide) { $('sheet').innerHTML = html; $('sheet').classList.toggle('wide', !!wide); $('ov').classList.add('show'); $('sheet').scrollTop = 0; }
 function closeSheet() { $('ov').classList.remove('show'); }
 $('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); };
 
@@ -673,7 +925,7 @@ function renderTasks() {
     if (g.length) h += `<div class="dayhead"><span>${name}</span><span class="hint">${g.length}</span></div>` + g.map(x => taskHtml(x, true)).join('');
   });
   if (!list.length) h += '<div class="empty">Nicio sarcină deschisă.</div>';
-  $('view').innerHTML = h;
+  $('view').innerHTML = '<div class="narrow">' + h + '</div>';
   $('view').querySelectorAll('[data-scope]').forEach(b => b.onclick = () => { S.taskScope = b.dataset.scope; renderTasks(); });
   bindTaskChecks($('view'), renderTasks);
 }
@@ -888,14 +1140,34 @@ function replaceEvent(ev) {
 }
 
 /* ---------- evenimente UI ---------- */
-document.querySelectorAll('.tab').forEach(t => t.onclick = () => { S.view = t.dataset.view; try { localStorage.setItem('rcal_view', S.view); } catch (e) {} render(); });
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => setView(t.dataset.view));
 $('fab').onclick = () => openForm(null);
+$('btnNew').onclick = () => openForm(null);
 $('btnRefresh').onclick = () => load(false);
 $('btnToday').onclick = () => {
-  const t = parseIso(S.data.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); S.selDay = S.data.now; render();
+  const t = parseIso(S.data.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); S.selDay = S.data.now; S.week = mondayOf(S.data.now); render();
   if (S.view === 'agenda') window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 $('q').oninput = e => { S.q = e.target.value; render(); };
+// Scurtături de tastatură, pentru lucrul pe calculator
+document.addEventListener('keydown', ev => {
+  if (!S.data) return;
+  const open = $('ov').classList.contains('show');
+  if (ev.key === 'Escape') { if (open) { closeSheet(); ev.preventDefault(); } else if (document.activeElement === $('q')) $('q').blur(); return; }
+  const tag = (ev.target.tagName || '').toLowerCase();
+  if (open || ev.metaKey || ev.ctrlKey || ev.altKey || ['input', 'textarea', 'select'].includes(tag) || ev.target.isContentEditable) return;
+  const k = ev.key.toLowerCase();
+  if (k === 'n' && !(S.data.user && S.data.user.readonly)) { ev.preventDefault(); openForm(null); }
+  else if (k === '/') { ev.preventDefault(); if (S.view === 'acasa' || S.view === 'sarcini') setView('agenda'); $('q').focus(); }
+  else if (k === 't') $('btnToday').click();
+  else if (['1', '2', '3', '4', '5'].includes(k)) setView(['acasa', 'agenda', 'sapt', 'luna', 'sarcini'][Number(k) - 1]);
+  else if ((k === 'arrowleft' || k === 'arrowright') && (S.view === 'sapt' || S.view === 'luna')) {
+    const dir = k === 'arrowleft' ? -1 : 1;
+    if (S.view === 'sapt') { S.week = addDaysIso(S.week || mondayOf(S.data.now), 7 * dir); renderWeek(); }
+    else { S.month = new Date(S.month.getFullYear(), S.month.getMonth() + dir, 1); S.selDay = null; renderMonth(); }
+  }
+});
+let _rz; addEventListener('resize', () => { clearTimeout(_rz); _rz = setTimeout(() => { if (S.data && (S.view === 'sapt' || S.view === 'luna')) render(); }, 200); });
 // Reîmprospătare automată la 2 minute, doar cât timp pagina e vizibilă și nu e deschis un formular
 setInterval(() => { if (!document.hidden && !$('ov').classList.contains('show')) load(true); }, 120000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.data && !$('ov').classList.contains('show')) load(true); });
