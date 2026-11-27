@@ -2,6 +2,7 @@
 <html lang="ro">
 <head>
 <meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#24382E">
@@ -105,7 +106,6 @@
   .btn:disabled{opacity:.45;cursor:default}
   input.tm-in{font-variant-numeric:tabular-nums} input.tm-in.bad{border-color:var(--red);background:#FCEDEB}
   .dayhead.flash{animation:flash 1.5s ease-out} @keyframes flash{0%,40%{background:#FADCE3}100%{background:transparent}}
-  .secure{font-weight:700;letter-spacing:.2px} .secure span{font-weight:400;opacity:.75;font-size:.92em}
   table.adus{width:100%;border-collapse:collapse;font-size:14px} table.adus th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)} table.adus td{padding:7px 8px;border-bottom:1px solid #EEE8DD}
   table.adus tr.arow td{font-size:13px;color:var(--muted);padding:4px 8px 4px 22px;cursor:pointer} table.adus tr.arow:hover td{background:#F6F2EA}
   .navbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
@@ -346,9 +346,10 @@
 <div class="login" id="login">
   <img src="logo-white.png" alt="Republica | 1963">
   <h1>Calendar evenimente</h1>
-  <p class="secure"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Autentificare securizată prin Google<br><span>Acces doar pentru echipa Republica | 1963</span></p>
+  <p>Calendarul intern al echipei. Intri cu adresa de Gmail pe care ai dat-o lui Mihai.</p>
   <div class="err" id="loginErr" style="display:none"></div>
-  <button id="loginBtn">Intră cu Google</button>
+  <div id="gbtn" style="min-height:44px;display:flex;justify-content:center"></div>
+  <button id="loginBtn" style="display:none">Intră cu contul Google</button>
 </div>
 
 <script>
@@ -433,8 +434,31 @@ function loginScreen(msg) {
   $('loginErr').style.display = msg ? 'block' : 'none';
   $('loginErr').textContent = msg || '';
   $('login').classList.add('show');
+  showGoogleButton();
 }
 $('loginBtn').onclick = () => startLogin(false);
+/* Butonul oficial Google (Google Identity Services). Dacă scriptul Google nu se încarcă, rămâne butonul nostru, cu redirecționare. */
+let gisReady = false;
+function showGoogleButton() {
+  if (!(window.google && google.accounts && google.accounts.id)) { $('loginBtn').style.display = ''; return; }
+  if (!gisReady) {
+    google.accounts.id.initialize({
+      client_id: CONFIG.CLIENT_ID, auto_select: true, use_fedcm_for_prompt: true,
+      login_hint: store.get(HINT_KEY) || undefined,
+      callback: r => {
+        const pl = jwtPayload(r.credential) || {};
+        store.set(AUTH_KEY, JSON.stringify({ token: r.credential, exp: pl.exp ? pl.exp * 1000 : Date.now() + 3600e3 }));
+        if (pl.email) store.set(HINT_KEY, pl.email);
+        location.reload();
+      }
+    });
+    gisReady = true;
+  }
+  $('gbtn').innerHTML = '';
+  google.accounts.id.renderButton($('gbtn'), { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', locale: 'ro', width: 260 });
+  $('loginBtn').style.display = 'none';
+}
+window.onGisLoad = () => { if ($('login').classList.contains('show')) showGoogleButton(); };
 
 let TOKEN = null;
 async function api(action, extra) {
@@ -1574,5 +1598,6 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').ca
   setTimeout(maybeInstall, 1500);
 })();
 </script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="window.onGisLoad && window.onGisLoad()"></script>
 </body>
 </html>
