@@ -1358,8 +1358,12 @@ function submit(e, force) {
     if (r.unchanged) { toast('Nimic de salvat'); return openDetail(e.id); }
     r.events.forEach(replaceEvent);
     mergeById(S.data.tasks, r.tasks);
-    closeSheet(); render();
-    toast(r.events.length > 1 ? 'Am adăugat ' + r.events.length + ' evenimente' : (e ? 'Salvat' : 'Adăugat'));
+    render();
+    // după salvare deschidem fișa, ca să se vadă clar că evenimentul e în calendar, oricât de departe ar fi data
+    const first = r.events[0];
+    openDetail(first.id);
+    toast(r.events.length > 1 ? 'Am adăugat ' + r.events.length + ' evenimente, primul ' + shortDay(first.data) + ' ' + first.data.slice(0, 4)
+      : (e ? 'Salvat' : 'Salvat în calendar: ' + longDate(first.data)), 4000);
   });
 }
 
