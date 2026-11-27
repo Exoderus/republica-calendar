@@ -180,6 +180,7 @@ function saveEvent(input, opts) {
       writeRow_(sh, cur._row, merged);
       log_(user, 'Modificat', merged.id, merged.titlu, changes.join('; '));
       const tasks = syncTasks_([{ ev: merged, prev: cur }]);
+      notifyChange_(cur, merged);
       delete merged._row;
       return { ok: true, events: [merged], conflicts: conflicts, tasks: tasks };
     }
@@ -227,6 +228,7 @@ function archiveEvent(id, expectedModified) {
     writeRow_(ss_().getSheetByName(SHEET_EV), cur._row, merged);
     log_(user, 'Arhivat', id, cur.titlu, summary_(cur));
     const tasks = syncTasks_([{ ev: merged, prev: cur }]);
+    notifyChange_(cur, merged);
     return { ok: true, id: id, tasks: tasks };
   } finally {
     lock.releaseLock();
@@ -366,14 +368,17 @@ function readModules_() {
 function readTemplates_() {
   const sh = ss_().getSheetByName(SHEET_TEMPLATES);
   if (sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, 5).getDisplayValues()
+  const nc = Math.min(Math.max(sh.getLastColumn(), 5), 7);
+  return sh.getRange(2, 1, sh.getLastRow() - 1, nc).getDisplayValues()
     .filter(r => String(r[0]).trim() && String(r[1]).trim() && String(r[2]).trim())
     .map(r => ({
       cod: String(r[0]).trim(), modul: String(r[1]).trim(), sarcina: String(r[2]).trim(),
       responsabil: String(r[3]).trim(),
       // „R+2” = la 2 zile după rezervare; un număr simplu = zile înainte de eveniment (negativ = după)
       rez: /^R/i.test(String(r[4]).trim()),
-      zile: Number(String(r[4]).trim().replace(/^R\+?/i, '').replace(',', '.')) || 0
+      zile: Number(String(r[4]).trim().replace(/^R\+?/i, '').replace(',', '.')) || 0,
+      critica: /^(da|x|1|true)$/i.test(String(r[5] || '').trim()),
+      prelungire: Number(r[6]) || 0
     }));
 }
 
@@ -521,10 +526,30 @@ function taskUpdate(id, patch) {
     t.modificatDe = currentUser_(); t.modificatLa = stamp_();
     writeTableRow_(SHEET_TASKS, TASK_COLS, TASK_NUM, t._row, t);
     log_(t.modificatDe, 'Sarcină', t.eventId, t.sarcina, before + ' → ' + t.stare + ' · ' + t.responsabil + ' · ' + t.termen);
-    return { ok: true, task: strip_(t) };
+    let event = null;
+    if (patch.stare === T_DONE) {
+      const tp = readTemplates_().find(x => x.cod === t.sablon);
+      if (tp && tp.prelungire > 0) event = extendOption_(t.eventId, tp.prelungire, t.sarcina);
+    }
+    return { ok: true, task: strip_(t), event: event };
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Prelungește opțiunea unui eveniment (ex. după ce contractul a fost trimis clientului). */
+function extendOption_(eventId, zile, motiv) {
+  const all = readAll_(false);
+  const cur = all.find(e => e.id === eventId);
+  if (!cur || cur.status !== STATUS_OPTIUNE) return null;
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const nou = addDays_(today, zile);
+  if (cur.optiunePana && cur.optiunePana >= nou) return null;
+  const merged = Object.assign({}, cur, { optiunePana: nou, modificatDe: currentUser_(), modificatLa: stamp_() });
+  writeRow_(ss_().getSheetByName(SHEET_EV), cur._row, merged);
+  log_(currentUser_(), 'Opțiune prelungită', cur.id, cur.titlu, (cur.optiunePana || '—') + ' → ' + nou + ' (' + motiv + ')');
+  delete merged._row;
+  return merged;
 }
 
 function taskAdd(input) {
@@ -703,9 +728,35 @@ function spacesClash_(a, b) {
   return a === b || a === SPATIU_TOT || b === SPATIU_TOT;
 }
 
+/** Ferestrele în care oamenii noștri sunt prinși la un eveniment: montaj (deschide) și demontaj (închide). */
+function staffWindows_(e) {
+  const base = dayNum_(e.data) * 1440, st = toMin_(e.start);
+  if (st === null) return [];
+  const out = [];
+  if (e.deschide && toMin_(e.montaj) !== null) {
+    const s0 = (e.montajData ? dayNum_(e.montajData) * 1440 : base) + toMin_(e.montaj);
+    out.push({ who: e.deschide, rol: 'montaj', s: s0, f: base + st });
+  }
+  if (e.inchide && toMin_(e.demontaj) !== null) {
+    let fin = toMin_(e.sfarsit); if (fin === null) fin = st + 120; if (fin <= st) fin += 1440;
+    let d = toMin_(e.demontaj); if (d <= st) d += 1440;
+    out.push({ who: e.inchide, rol: 'demontaj', s: base + fin, f: base + Math.max(d, fin + 1) });
+  }
+  return out;
+}
+
 function findConflicts_(ev, all, excludeIds) {
   if (ev.status === STATUS_ANULAT) return [];
   const [s, f] = interval_(ev);
+  const mine = staffWindows_(ev);
+  const people = mine.length ? all.filter(o =>
+    excludeIds.indexOf(o.id) < 0 && o.arhivat !== 'DA' && o.status !== STATUS_ANULAT &&
+    Math.abs(daysBetween_(o.data, ev.data)) <= 8 && !spacesClash_(o.spatiu, ev.spatiu)
+  ).map(o => {
+    const hit = [];
+    staffWindows_(o).forEach(w => mine.forEach(m => { if (w.who === m.who && w.s < m.f && m.s < w.f) hit.push(m.who + ' e la ' + m.rol + ' aici și la ' + w.rol + ' acolo'); }));
+    return hit.length ? { id: o.id, titlu: o.titlu, data: o.data, start: o.start, sfarsit: o.sfarsit, spatiu: o.spatiu, status: o.status, responsabil: o.responsabil, optiunePana: o.optiunePana, motiv: hit.join('; ') } : null;
+  }).filter(Boolean) : [];
   return all.filter(o =>
     excludeIds.indexOf(o.id) < 0 &&
     o.arhivat !== 'DA' &&
@@ -716,7 +767,7 @@ function findConflicts_(ev, all, excludeIds) {
   ).map(o => ({
     id: o.id, titlu: o.titlu, data: o.data, start: o.start, sfarsit: o.sfarsit,
     spatiu: o.spatiu, status: o.status, responsabil: o.responsabil, optiunePana: o.optiunePana
-  }));
+  })).concat(people);
 }
 
 /* ---------- Repetare ---------- */
@@ -792,6 +843,7 @@ function dailyRun(o) {
   o = (o && o.onlyTo !== undefined) ? o : {};
   USER_ = { email: 'automat', name: 'Calendar (automat)' };
   const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  if (!o.dryCancel) backup_(today);
   const cancelled = o.dryCancel ? [] : cancelExpiredOptions_(today);
   return sendDigests_(today, cancelled, o.onlyTo || '', o.previewTo || '');
 }
@@ -840,7 +892,8 @@ function h_(s) { return String(s == null ? '' : s).replace(/^'/, '').replace(/&/
 function sendDigests_(today, cancelled, onlyName, previewTo) {
   const events = readAll_(true).filter(e => e.arhivat !== 'DA');
   const byId = {}; events.forEach(e => byId[e.id] = e);
-  const tasks = readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM).filter(t => t.stare === T_OPEN && byId[t.eventId] && byId[t.eventId].status !== STATUS_ANULAT);
+  const allTasks = readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM), templates = readTemplates_();
+  const tasks = allTasks.filter(t => t.stare === T_OPEN && byId[t.eventId] && byId[t.eventId].status !== STATUS_ANULAT);
   const tomorrow = addDays_(today, 1);
   const live = events.filter(e => e.status !== STATUS_ANULAT);
   let sent = 0;
@@ -855,13 +908,16 @@ function sendDigests_(today, cancelled, onlyName, previewTo) {
     const opts = live.filter(e => e.status === STATUS_OPTIUNE && e.responsabil === p.name && e.optiunePana && e.optiunePana <= tomorrow);
     const lipsa = live.filter(e => e.responsabil === p.name && (e.montaj || e.demontaj) && (!e.deschide || !e.inchide) && e.data >= today && e.data <= addDays_(today, 7));
     const anulate = cancelled.filter(e => e.responsabil === p.name);
-    if (!late.length && !now.length && !myEv.length && !opts.length && !lipsa.length && !anulate.length) return;
+    const nepreg = live.filter(e => e.responsabil === p.name && e.data >= today && e.data <= addDays_(today, 3))
+      .map(e => ({ e: e, r: readiness_(e, allTasks, templates) })).filter(x => x.r.total && x.r.gata < x.r.total);
+    if (!late.length && !now.length && !myEv.length && !opts.length && !lipsa.length && !anulate.length && !nepreg.length) return;
 
     const evLine = e => `<b>${h_(e.titlu)}</b> · ${fmtZi_(e.data)}, ${h_(e.start)}${e.sfarsit ? '–' + h_(e.sfarsit) : ''} · ${h_(e.spatiu)}`;
     const taskLine = t => `${h_(t.sarcina)}<br><span style="color:#6B706C">${byId[t.eventId] ? evLine(byId[t.eventId]) : ''} · termen ${fmtZi_(t.termen)}</span>`;
     const sec = (title, items, color) => items.length ? `<h3 style="font:600 16px Georgia,serif;color:${color || '#24382E'};margin:22px 0 8px">${title}</h3><ul style="padding-left:18px;margin:0">${items.map(x => `<li style="margin:0 0 8px">${x}</li>`).join('')}</ul>` : '';
     let html = `<div style="font:14px/1.5 Arial,sans-serif;color:#1E2420;max-width:560px">`;
     html += `<p style="margin:0 0 4px">Bună dimineața, ${h_(p.name)}.</p><p style="margin:0;color:#6B706C">Ce ai de urmărit azi, ${fmtZi_(today)}, în calendarul Republica | 1963.</p>`;
+    html += sec('Nu sunt gata pentru public', nepreg.map(x => evLine(x.e) + `<br><span style="color:#6B706C">gata ${x.r.gata} din ${x.r.total}; lipsește: ${x.r.lipsa.map(h_).join('; ')}</span>`), '#CB2125');
     html += sec('Întârziate' + (late.length > 15 ? ' (primele 15 din ' + late.length + ')' : ''), late.slice(0, 15).map(taskLine), '#CB2125');
     html += sec('De făcut azi și mâine', now.map(taskLine));
     html += sec('Evenimentele tale, azi și mâine', myEv.map(e => {
@@ -876,10 +932,76 @@ function sendDigests_(today, cancelled, onlyName, previewTo) {
     html += sec('Lipsește omul de la montaj sau demontaj', lipsa.map(e => evLine(e) + `<br><span style="color:#6B706C">${!e.deschide ? 'montaj: nimeni ales' : ''}${!e.deschide && !e.inchide ? ' · ' : ''}${!e.inchide ? 'demontaj: nimeni ales' : ''}</span>`), '#B24732');
     html += sec('Anulate automat azi-noapte', anulate.map(e => evLine(e) + `<br><span style="color:#6B706C">opțiunea a expirat și n-a fost confirmată</span>`), '#6B706C');
     html += `<p style="margin:26px 0 0"><a href="${APP_URL}" style="background:#24382E;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">Deschide calendarul</a></p></div>`;
-    const parts = [late.length && late.length + ' întârziate', now.length && now.length + ' de făcut', myEv.length && (myEv.length === 1 ? '1 eveniment' : myEv.length + ' evenimente'),
+    const parts = [nepreg.length && nepreg.length + ' nepregătite', late.length && late.length + ' întârziate', now.length && now.length + ' de făcut', myEv.length && (myEv.length === 1 ? '1 eveniment' : myEv.length + ' evenimente'),
       opts.length && (opts.length === 1 ? '1 opțiune expiră' : opts.length + ' opțiuni expiră'), anulate.length && anulate.length + ' anulate automat', lipsa.length && 'lipsesc oameni la montaj'].filter(Boolean);
     MailApp.sendEmail({ to: previewTo || p.email, subject: (previewTo ? '[Test, rezumatul lui ' + p.name + '] ' : '') + 'Calendar Republica: ' + (parts.join(', ') || 'rezumatul zilei'), htmlBody: html, name: 'Calendar Republica | 1963' });
     sent++;
   });
   return { sent: sent, cancelled: cancelled.length };
+}
+
+
+/* ---------- Notificări imediate la schimbări importante ---------- */
+
+const CRITICE_ = ['data', 'spatiu', 'start', 'sfarsit', 'montajData', 'montaj', 'proba', 'acces', 'demontaj', 'deschide', 'inchide', 'responsabil', 'status'];
+
+/** Trimite imediat email oamenilor implicați când se schimbă ceva important la un eveniment. */
+function notifyChange_(cur, nou) {
+  try {
+    const arhivat = nou.arhivat === 'DA' && cur.arhivat !== 'DA';
+    const diffs = CRITICE_.filter(k => String(cur[k] || '') !== String(nou[k] || ''));
+    if (!arhivat && !diffs.length) return;
+    if (!arhivat && diffs.length === 1 && diffs[0] === 'status' && nou.status !== STATUS_ANULAT && cur.status !== STATUS_ANULAT) return; // Opțiune → Confirmat nu e o alarmă
+    const names = {};
+    [cur, nou].forEach(e => ['responsabil', 'deschide', 'inchide'].forEach(k => { if (e[k]) names[e[k]] = 1; }));
+    readTable_(SHEET_TASKS, TASK_COLS, TASK_NUM).filter(t => t.eventId === nou.id && t.stare === T_OPEN && t.responsabil).forEach(t => names[t.responsabil] = 1);
+    const me = USER_ ? USER_.name : '';
+    delete names[me];
+    const team = team_().filter(p => names[p.name]);
+    if (!team.length) return;
+    const val = (e, k) => {
+      const v = String(e[k] || '').replace(/^'/, '');
+      if (!v) return '—';
+      return (k === 'data' || k === 'montajData') ? fmtZi_(v) : v;
+    };
+    const rows = arhivat ? ['<li><b>Evenimentul a fost scos din calendar (arhivat).</b></li>']
+      : diffs.map(k => `<li>${h_(LABELS[k])}: <s style="color:#9C9286">${h_(val(cur, k))}</s> → <b>${h_(val(nou, k))}</b></li>`);
+    const anulat = arhivat || (nou.status === STATUS_ANULAT && cur.status !== STATUS_ANULAT);
+    const titlu = String(nou.titlu || '').replace(/^'/, '');
+    const subj = (anulat ? 'Anulat: ' : 'Modificare: ') + titlu + ' · ' + fmtZi_(nou.data);
+    const html = `<div style="font:14px/1.5 Arial,sans-serif;color:#1E2420;max-width:560px">
+      <p style="margin:0 0 6px">${h_(me || 'Cineva')} a modificat un eveniment la care ești implicat:</p>
+      <h3 style="font:600 17px Georgia,serif;color:${anulat ? '#CB2125' : '#24382E'};margin:10px 0 4px">${h_(titlu)}</h3>
+      <p style="margin:0;color:#6B706C">${fmtZi_(nou.data)}, ${h_(nou.start)}${nou.sfarsit ? '–' + h_(nou.sfarsit) : ''} · ${h_(nou.spatiu)}</p>
+      <ul style="padding-left:18px">${rows.join('')}</ul>
+      <p style="margin:20px 0 0"><a href="${APP_URL}" style="background:#24382E;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">Deschide calendarul</a></p></div>`;
+    team.forEach(p => MailApp.sendEmail({ to: p.email, subject: subj, htmlBody: html, name: 'Calendar Republica | 1963' }));
+    log_(me, 'Notificare trimisă', nou.id, titlu, team.map(p => p.name).join(', ') + ': ' + (arhivat ? 'arhivat' : diffs.map(k => LABELS[k]).join(', ')));
+  } catch (err) {
+    try { log_(USER_ ? USER_.name : '', 'Eroare notificare', nou.id, nou.titlu, String(err && err.message || err)); } catch (_) {}
+  }
+}
+
+/* ---------- Backup zilnic ---------- */
+
+/** O copie a Sheet-ului în fiecare zi, în folderul „Backup calendar” de lângă el. Nu șterge nimic. */
+function backup_(today) {
+  try {
+    const file = DriveApp.getFileById(SS_ID);
+    const parent = file.getParents().hasNext() ? file.getParents().next() : DriveApp.getRootFolder();
+    const it = parent.getFoldersByName('Backup calendar');
+    const folder = it.hasNext() ? it.next() : parent.createFolder('Backup calendar');
+    const name = 'Calendar backup ' + today;
+    if (folder.getFilesByName(name).hasNext()) return;
+    file.makeCopy(name, folder);
+  } catch (err) {
+    try { log_('Calendar (automat)', 'Eroare backup', '', '', String(err && err.message || err)); } catch (_) {}
+  }
+}
+
+/** Gata pentru public: sarcinile critice ale evenimentului (marcate „DA” în Șabloane, coloana F). */
+function readiness_(ev, tasks, templates) {
+  const crit = {}; templates.filter(t => t.critica).forEach(t => crit[t.cod] = 1);
+  const ts = tasks.filter(t => t.eventId === ev.id && crit[t.sablon] && t.stare !== T_CANCEL);
+  return { total: ts.length, gata: ts.filter(t => t.stare === T_DONE).length, lipsa: ts.filter(t => t.stare !== T_DONE).map(t => t.sarcina) };
 }

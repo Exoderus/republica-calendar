@@ -158,6 +158,36 @@
   .todo i{width:8px;height:8px;border-radius:50%;flex:none}
   .shortcuts{display:none;font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
   @media (min-width:1024px) and (hover:hover){ .shortcuts{display:block} }
+  .ready{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin:5px 0 0 6px}
+  .ready.ok{background:#DDEBE3;color:var(--green)}
+  .ready.part{background:#FBEFD9;color:#8A5A07}
+  .ready.bad{background:#F6DAD7;color:var(--red)}
+  .chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:4px 0}
+  .chk i{font-style:normal;font-weight:800;width:18px;flex:none}
+  .chk.ok i{color:var(--green)} .chk.no i{color:var(--red)}
+  .chk.ok span{color:var(--muted)}
+  .wb.blk, .rowev.blk .b{background:repeating-linear-gradient(135deg,#ECE7DD 0 6px,#E1DACB 6px 12px)}
+  .card.blk{background:repeating-linear-gradient(135deg,#FFFFFF 0 10px,#F7F3EA 10px 20px)}
+  /* Brief */
+  .brief h3{margin-bottom:2px}
+  .brief .bnav{display:flex;gap:6px;align-items:center;margin:8px 0 14px;flex-wrap:wrap}
+  .brief table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .brief td{padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  .brief td.t{font-weight:800;white-space:nowrap;width:52px}
+  .brief td.w{color:var(--muted);white-space:nowrap}
+  .brief .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+  .brief .evc{background:#fff;border-radius:12px;padding:10px 12px;margin:8px 0;border-left:5px solid}
+  .brief .evc b{font-size:15px}
+  .brief .evc .m{font-size:13px;color:var(--muted);margin-top:3px}
+  .brief .ppl{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13.5px}
+  .brief .ppl div:nth-child(odd){font-weight:700}
+  @media print {
+    header, .filters, main, .fab, .toast, .inst, .loading, .noprint{display:none !important}
+    body{background:#fff}
+    .overlay{position:static !important;display:block !important;background:none !important}
+    .sheet{position:static !important;width:auto !important;height:auto !important;max-height:none !important;box-shadow:none !important;padding:0 !important;overflow:visible !important;animation:none !important}
+    .brief .evc{break-inside:avoid;border:1px solid #ddd;border-left-width:5px}
+  }
   /* Săptămână */
   .wnav{display:flex;align-items:center;gap:8px;margin:2px 2px 12px;flex-wrap:wrap}
   .wnav h2{font-family:Fraunces,serif;margin:0;font-size:20px;color:var(--green);flex:1}
@@ -469,13 +499,13 @@ function render() {
 }
 
 function cardHtml(e) {
-  return `<div class="card ${e.status === 'Anulat' ? 'cancel' : ''}" data-id="${esc(e.id)}">
+  return `<div class="card ${e.status === 'Anulat' ? 'cancel' : ''} ${isBlock(e) ? 'blk' : ''}" data-id="${esc(e.id)}">
     <div class="bar" style="background:${esc(colorOf(e.spatiu))}"></div>
     <div class="body">
       <div class="time">${esc(e._montaj ? 'de la ' + e.start : timeRange(e))} · ${esc(e.spatiu)}${e._montaj ? ' <span class="badge b-Opțiune">Montaj pentru ' + esc(shortDay(e._montaj)) + '</span>' : statusBadge(e)}</div>
       <div class="title">${esc(shown(e.titlu))}</div>
       <div class="meta">${esc([e.tip, e.responsabil, shown(e.client)].filter(Boolean).join(' · '))}</div>
-      ${e._montaj ? '' : progHtml(e)}
+      ${e._montaj ? '' : progHtml(e)}${readyBadge(e)}
     </div></div>`;
 }
 
@@ -569,7 +599,7 @@ function evRoles(e, name) {
 }
 function rowEvHtml(e, name, withDay) {
   const r = name ? evRoles(e, name) : [];
-  const bits = [e.spatiu];
+  const bits = [e.spatiu, isBlock(e) && 'blocaj intern'];
   if (e._montaj) bits.push('montaj pentru ' + shortDay(e._montaj));
   else {
     if (e.status !== 'Confirmat') bits.push(e.status === 'Opțiune' ? 'opțiune' : e.status.toLowerCase());
@@ -592,7 +622,7 @@ function occMinutes(e) {
 }
 function renderHome() {
   const D = S.data, today = D.now, tom = addDaysIso(today, 1), me = D.user ? D.user.name : '', ro = D.user && D.user.readonly;
-  const live = D.events.filter(e => e.status !== 'Anulat');
+  const live = D.events.filter(e => e.status !== 'Anulat' && !isBlock(e));
   const all = allWithMontaj().filter(e => e.status !== 'Anulat').sort((a, b) => (a.data + (a.start || '')).localeCompare(b.data + (b.start || '')));
   const ym = today.slice(0, 7), lunaN = RO_LUNI[Number(ym.slice(5)) - 1];
   const inMonth = live.filter(e => e.data.slice(0, 7) === ym);
@@ -609,7 +639,7 @@ function renderHome() {
   const h0 = new Date().getHours();
   const hi = h0 < 12 ? 'Bună dimineața' : h0 < 18 ? 'Bună ziua' : 'Bună seara';
 
-  let h = `<div class="hello"><h2>${hi}${me ? ', ' + esc(me) : ''}</h2><span class="hint">${esc(longDate(today))}</span></div>`;
+  let h = `<div class="hello"><h2>${hi}${me ? ', ' + esc(me) : ''}</h2><span class="hint">${esc(longDate(today))} &nbsp; <button class="navbtn" id="hBrief" style="padding:0 12px">Brief-ul zilei</button></span></div>`;
   h += `<div class="kpis">
     <div class="kpi" data-go="luna"><div class="k">Evenimente în ${lunaN}</div><div class="v">${conf + optN}</div><div class="s">${conf} confirmate · ${optN} opțiuni</div></div>
     <div class="kpi" data-go="luna"><div class="k">Valoare contractată în ${lunaN}</div><div class="v">${lei0(valLuna)}</div><div class="s">din câmpul Valoare</div></div>
@@ -642,6 +672,7 @@ function renderHome() {
   const soon = live.filter(e => e.data >= today && e.data <= addDaysIso(today, 14));
   const issues = [];
   opts.filter(e => e.optiunePana && e.optiunePana <= addDaysIso(today, 2)).forEach(e => issues.push([e, optState(e) === 'expired' ? 'Opțiune expirată pe ' + shortDay(e.optiunePana) : 'Opțiunea expiră ' + shortDay(e.optiunePana), 'var(--red)']));
+  soon.filter(e => e.data <= addDaysIso(today, 7)).forEach(e => { const r = readiness(e); if (r.total && r.gata < r.total) issues.push([e, 'Nepregătit ' + r.gata + '/' + r.total + ': ' + r.list.filter(t => t.stare !== 'Gata').map(t => shown(t.sarcina)).slice(0, 2).join('; '), e.data <= addDaysIso(today, 3) ? 'var(--red)' : 'var(--amber)']); });
   soon.filter(e => (e.montaj || e.demontaj) && (!e.deschide || !e.inchide)).forEach(e => issues.push([e, 'Lipsește omul de la ' + (!e.deschide ? 'montaj' : 'demontaj'), 'var(--rust)']));
   soon.filter(e => !e.sfarsit).forEach(e => issues.push([e, 'Fără oră de final', 'var(--amber)']));
   soon.filter(e => !e.responsabil).forEach(e => issues.push([e, 'Fără responsabil', 'var(--rust)']));
@@ -659,9 +690,10 @@ function renderHome() {
   });
   h += `<section class="panel span3"><h4>Ocupare, următoarele 30 de zile <small>zile cu cel puțin un eveniment, inclusiv montaj</small></h4><div class="occ">` +
     occ.map(o => `<div><b>${esc(o.sp.name)}</b></div><div class="bar"><i style="width:${Math.round(o.days / 30 * 100)}%;background:${esc(o.sp.color)}"></i></div><div class="n">${o.days}/30 zile · ${o.hrs} h</div>`).join('') + `</div></section>`;
-  h += `</div><div class="shortcuts">Scurtături: <kbd>N</kbd> eveniment nou · <kbd>/</kbd> caută · <kbd>T</kbd> azi · <kbd>1</kbd>–<kbd>5</kbd> taburi · <kbd>←</kbd> <kbd>→</kbd> săptămâna/luna · <kbd>Esc</kbd> închide</div>`;
+  h += `</div><div class="shortcuts">Scurtături: <kbd>N</kbd> eveniment nou · <kbd>/</kbd> caută · <kbd>T</kbd> azi · <kbd>B</kbd> brief · <kbd>1</kbd>–<kbd>5</kbd> taburi · <kbd>←</kbd> <kbd>→</kbd> săptămâna/luna · <kbd>Esc</kbd> închide</div>`;
   $('view').innerHTML = h;
   $('view').querySelectorAll('[data-go]').forEach(b => b.onclick = () => setView(b.dataset.go));
+  $('hBrief').onclick = () => openBrief(today);
   $('view').querySelectorAll('.rowev, .todo[data-id]').forEach(r => r.onclick = () => openDetail(r.dataset.id));
   bindTaskChecks($('view'), renderHome);
 }
@@ -683,13 +715,13 @@ function renderWeek() {
     $('view').innerHTML = h; bindWeekNav(); bindCards($('view')); return;
   }
   const spaces = S.data.lists.spatii.filter(sp => !S.hiddenSpaces.has(sp.name) && (sp.name !== 'În afara locației' || ev.some(e => e.spatiu === sp.name)));
-  h += `<div class="wgrid"><div class="wh"></div>` + days.map(d => { const x = parseIso(d); return `<div class="wh ${d === today ? 'today' : ''}">${RO_ZILE[x.getDay()]}<b>${x.getDate()} ${RO_LUNI[x.getMonth()].slice(0, 3)}</b></div>`; }).join('');
+  h += `<div class="wgrid"><div class="wh"></div>` + days.map(d => { const x = parseIso(d); return `<div class="wh ${d === today ? 'today' : ''}" data-brief="${d}" style="cursor:pointer" title="Brief-ul zilei">${RO_ZILE[x.getDay()]}<b>${x.getDate()} ${RO_LUNI[x.getMonth()].slice(0, 3)}</b></div>`; }).join('');
   spaces.forEach(sp => {
     h += `<div class="sp"><i style="background:${esc(sp.color)}"></i>${esc(sp.name)}</div>`;
     days.forEach(d => {
       const l = ev.filter(e => e.data === d && e.spatiu === sp.name);
       h += `<div class="wc ${d === today ? 'today' : ''}" data-day="${d}" data-sp="${esc(sp.name)}">` + l.map(e => {
-        const cls = e._montaj ? 'mont' : e.status === 'Anulat' ? 'cancel' : e.status === 'Opțiune' ? 'opt' : '';
+        const cls = e._montaj ? 'mont' : isBlock(e) ? 'blk' : e.status === 'Anulat' ? 'cancel' : e.status === 'Opțiune' ? 'opt' : '';
         const tm = e._montaj ? 'montaj de la ' + e.start : (e.montaj && !e.montajData ? 'montaj ' + e.montaj + ' · ' : '') + timeRange(e);
         return `<div class="wb ${cls}" data-id="${esc(e.id)}" style="border-left-color:${esc(colorOf(e.spatiu))}" title="${esc(shown(e.titlu))}"><div class="tm">${esc(tm)}${e.status === 'Opțiune' && !e._montaj ? ' · opțiune' : ''}</div><div class="tt">${esc(e._montaj ? 'Montaj: ' + shown(e.titlu).replace(/^Montaj: /, '') : shown(e.titlu))}</div></div>`;
       }).join('') + `<div class="add">+ adaugă</div></div>`;
@@ -698,6 +730,7 @@ function renderWeek() {
   h += `</div><div class="wlegend"><span><i></i>confirmat</span><span><i style="background:#fff;outline:1px dashed #D8C9A8"></i>opțiune</span><span><i style="background:repeating-linear-gradient(135deg,#F3EFE7 0 4px,#EAE4D8 4px 8px)"></i>montaj în altă zi</span><span>Apasă pe o celulă goală ca să adaugi un eveniment în sala și ziua respectivă.</span></div>`;
   $('view').innerHTML = h; bindWeekNav();
   $('view').querySelectorAll('.wb').forEach(b => b.onclick = x => { x.stopPropagation(); openDetail(b.dataset.id); });
+  $('view').querySelectorAll('[data-brief]').forEach(b => b.onclick = () => openBrief(b.dataset.brief));
   $('view').querySelectorAll('.wc').forEach(c => c.onclick = () => { if (!(S.data.user && S.data.user.readonly)) openForm(null, { data: c.dataset.day, spatiu: c.dataset.sp }); });
 }
 function bindWeekNav() {
@@ -705,6 +738,56 @@ function bindWeekNav() {
   $('wNext').onclick = () => { S.week = addDaysIso(S.week, 7); renderWeek(); };
   $('wNow').onclick = () => { S.week = mondayOf(S.data.now); renderWeek(); };
 }
+/* ---------- Brief-ul zilei ---------- */
+function openBrief(day) {
+  const evs = S.data.events.filter(e => e.status !== 'Anulat' && (e.data === day || (e.montajData === day && e.montaj)))
+    .sort((a, b) => (a.data + (a.start || '')).localeCompare(b.data + (b.start || '')));
+  const mom = [];
+  evs.forEach(e => {
+    const today = e.data === day, col = colorOf(e.spatiu), t = shown(e.titlu);
+    if (e.montaj && (e.montajData ? e.montajData === day : today)) mom.push([e.montaj, e, 'Montaj începe' + (e.echipOrg ? ' · echipamentul lor: ' + e.echipOrg.toLowerCase() : ''), e.deschide ? 'deschide: ' + e.deschide : 'nimeni ales la montaj']);
+    if (!today) return;
+    if (e.proba) mom.push([e.proba, e, 'Probă de sunet', 'Bogdan']);
+    if (e.acces) mom.push([e.acces, e, 'Acces public', e.responsabil ? 'resp.: ' + e.responsabil : '']);
+    mom.push([e.start, e, isBlock(e) ? 'Blocaj / mentenanță' : 'Început' + (e.participanti ? ' · ' + e.participanti + ' persoane estimate' : ''), e.responsabil ? 'resp.: ' + e.responsabil : '']);
+    if (e.sfarsit) mom.push([e.sfarsit, e, 'Final', '']);
+    if (e.demontaj) mom.push([e.demontaj, e, 'Demontaj gata', e.inchide ? 'închide: ' + e.inchide : 'nimeni ales la demontaj']);
+  });
+  const key = t => { const m = minOf(t); return m === null ? 9999 : m; };
+  mom.sort((a, b) => key(a[0]) - key(b[0]));
+  const ppl = {};
+  const add = (n, x) => { if (n) (ppl[n] = ppl[n] || []).push(x); };
+  evs.forEach(e => {
+    const t = shown(e.titlu);
+    if (e.data === day) add(e.responsabil, 'responsabil ' + t);
+    if (e.deschide && e.montaj && (e.montajData ? e.montajData === day : e.data === day)) add(e.deschide, 'montaj de la ' + e.montaj + ', ' + e.spatiu);
+    if (e.inchide && e.demontaj && e.data === day) add(e.inchide, 'demontaj până la ' + e.demontaj + ', ' + e.spatiu);
+  });
+  const liveIds = new Set(evs.map(e => e.id));
+  (S.data.tasks || []).filter(t => t.stare === 'De făcut' && t.termen === day && liveIds.has(t.eventId) && t.modul !== 'montaj').forEach(t => add(t.responsabil || 'fără responsabil', shown(t.sarcina)));
+  const nepreg = evs.filter(e => e.data === day).map(e => [e, readiness(e)]).filter(([e, r]) => r.total && r.gata < r.total);
+  let h = `<div class="brief"><h3>Brief operațional</h3><div class="hint" style="font-size:14px">${esc(longDate(day))} · Republica | 1963</div>
+    <div class="bnav noprint"><button class="navbtn" id="bPrev">&#8249; ziua dinainte</button><button class="navbtn" id="bNext">ziua următoare &#8250;</button><button class="navbtn" id="bPrint" style="padding:0 12px">Tipărește</button><button class="navbtn" id="bClose" style="padding:0 12px">Închide</button></div>`;
+  if (!evs.length) h += '<div class="empty">Nimic programat în această zi.</div>';
+  else {
+    if (nepreg.length) h += `<div class="conf" style="border-left-color:var(--red)"><b style="color:var(--red)">Nu sunt gata pentru public:</b> ${nepreg.map(([e, r]) => esc(shown(e.titlu)) + ' (' + r.gata + '/' + r.total + ')').join(', ')}</div>`;
+    h += `<div class="sec" style="border:0;margin-top:6px;padding-top:0"><h4>Orarul zilei</h4><table>` + mom.map(([t, e, what, who]) =>
+      `<tr><td class="t">${esc(t || '—')}</td><td><span class="dot" style="background:${esc(colorOf(e.spatiu))}"></span><b>${esc(what)}</b><br><span class="hint">${esc(shown(e.titlu))} · ${esc(e.spatiu)}</span></td><td class="w">${esc(who)}</td></tr>`).join('') + `</table></div>`;
+    h += `<div class="sec"><h4>Oamenii zilei</h4><div class="ppl">` + Object.entries(ppl).map(([n, l]) => `<div>${esc(n)}</div><div>${l.map(esc).join('<br>')}</div>`).join('') + `</div></div>`;
+    h += `<div class="sec"><h4>Evenimentele</h4>` + evs.map(e => {
+      const r = readiness(e), mods = modsOf(e).map(modName);
+      const lines = [e.status + (e.tip ? ' · ' + e.tip : ''), e.client && 'client: ' + shown(e.client) + (e.contact ? ' (' + shown(e.contact) + ')' : ''), e.contactTehnic && 'tehnic organizator: ' + shown(e.contactTehnic), e.configurare && 'sala: ' + e.configurare, e.participanti && e.participanti + ' persoane estimate', mods.length && 'necesar: ' + mods.join(', '), r.total && 'pregătire: ' + r.gata + '/' + r.total, e.note && 'note: ' + shown(e.note)].filter(Boolean);
+      return `<div class="evc" style="border-left-color:${esc(colorOf(e.spatiu))}"><b>${esc(shown(e.titlu))}</b> · ${esc(e.spatiu)} · ${esc(e.data === day ? timeRange(e) : 'montaj pentru ' + shortDay(e.data))}<div class="m">${lines.map(esc).join('<br>')}</div></div>`;
+    }).join('') + `</div>`;
+  }
+  h += `</div>`;
+  openSheet(h, true);
+  $('bPrev').onclick = () => openBrief(addDaysIso(day, -1));
+  $('bNext').onclick = () => openBrief(addDaysIso(day, 1));
+  $('bPrint').onclick = () => window.print();
+  $('bClose').onclick = closeSheet;
+}
+
 function setView(v) { S.view = v; render(); window.scrollTo({ top: 0 }); }
 
 /* ---------- modal ---------- */
@@ -763,6 +846,19 @@ function montajHtml(e) {
 }
 const MONEY = ['valoare','avans','pachetBar','consumBar'];
 const lei = n => (Number(n) || 0).toLocaleString('ro-RO') + ' lei';
+function isBlock(e) { return /^Blocaj/i.test(e.tip || ''); }
+function readiness(e) {
+  const crit = new Set((S.data.templates || []).filter(t => t.critica).map(t => t.cod));
+  const ts = tasksOf(e.id).filter(t => crit.has(t.sablon) && t.stare !== 'Anulată');
+  return { total: ts.length, gata: ts.filter(t => t.stare === 'Gata').length, list: ts };
+}
+function readyBadge(e) {
+  if (e._montaj || e.status === 'Anulat' || isBlock(e)) return '';
+  const r = readiness(e); if (!r.total) return '';
+  const soon = e.data <= addDaysIso(S.data.now, 3);
+  const cls = r.gata === r.total ? 'ok' : soon ? 'bad' : 'part';
+  return `<span class="ready ${cls}" title="Sarcini critice gata">${r.gata === r.total ? 'Gata pentru public' : 'Pregătit ' + r.gata + '/' + r.total}</span>`;
+}
 function modsOf(e) { return String(e.module || '').split(',').map(x => x.trim()).filter(Boolean); }
 function modName(c) { const m = (S.data.modules || []).find(x => x.cod === c); return m ? m.nume : c; }
 function tasksOf(id) { return (S.data.tasks || []).filter(t => t.eventId === id); }
@@ -810,6 +906,10 @@ function dossierHtml(e) {
   const rider = riderOf(e.id);
   let h = '';
   h += montajHtml(e);
+  const rd = readiness(e);
+  if (rd.total && !isBlock(e)) h += `<div class="sec"><h4>Gata pentru public <small>${rd.gata} din ${rd.total} verificări critice</small></h4>` +
+    rd.list.map(t => `<div class="chk ${t.stare === 'Gata' ? 'ok' : 'no'}"><i>${t.stare === 'Gata' ? '✓' : '✗'}</i><span>${esc(shown(t.sarcina))}${t.stare !== 'Gata' ? ' · ' + esc(t.responsabil || 'fără responsabil') : ''}</span></div>`).join('') +
+    (rd.gata < rd.total ? '<div class="hint">Evenimentul nu e gata pentru accesul publicului până nu sunt bifate toate.</div>' : '') + `</div>`;
   h += `<div class="sec"><h4>Necesar logistic <small><a href="#" id="modsEdit">modifică</a></small></h4><div class="mods" id="modsView" style="cursor:pointer">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('') || '<span class="mod">Nimic bifat. Apasă ca să alegi.</span>'}</div></div>`;
   h += `<div class="sec"><h4>Sarcini <small>${done} din ${tasks.length} gata</small></h4>`;
   h += tasks.map(t => taskHtml(t, false)).join('') || '<div class="hint">Nicio sarcină încă. Bifează necesarul logistic (Editează) sau adaugă una de mână.</div>';
@@ -858,7 +958,10 @@ function bindTaskChecks(root, after) {
     const id = cb.dataset.task, gata = cb.checked;
     call('taskUpdate', [id, { stare: gata ? 'Gata' : 'De făcut' }], r => {
       if (r.error) return toast(r.error, 4000);
-      mergeById(S.data.tasks, [r.task]); after(); toast(gata ? 'Gata' : 'Redeschisă');
+      mergeById(S.data.tasks, [r.task]);
+      if (r.event) { replaceEvent(r.event); toast('Gata. Opțiunea e prelungită până ' + shortDay(r.event.optiunePana), 4000); }
+      else toast(gata ? 'Gata' : 'Redeschisă');
+      after();
     });
   });
   root.querySelectorAll('[data-open]').forEach(a => a.onclick = ev => { ev.preventDefault(); openDetail(a.dataset.open); });
@@ -1111,10 +1214,10 @@ function submit(e, force) {
 
 function showConflicts(list, e) {
   const saved = submit._last.input;
-  const html = list.map(c => `<div class="conf"><b>${esc(shortDate(c.data))} · ${esc(timeRange(c))}</b> · ${esc(c.spatiu)}<br>${esc(shown(c.titlu))} ${statusBadge(c)}${c.responsabil ? ' · ' + esc(c.responsabil) : ''}</div>`).join('');
+  const html = list.map(c => `<div class="conf"><b>${esc(shortDate(c.data))} · ${esc(timeRange(c))}</b> · ${esc(c.spatiu)}<br>${esc(shown(c.titlu))} ${statusBadge(c)}${c.responsabil ? ' · ' + esc(c.responsabil) : ''}${c.motiv ? `<br><b style="color:var(--rust)">Om dublat: ${esc(c.motiv)}</b>` : ''}</div>`).join('');
   const back = $('sheet').innerHTML;
   openSheet(`<h3>Se suprapune cu ${list.length === 1 ? 'un eveniment' : list.length + ' evenimente'}</h3>
-    <p style="margin-top:0;color:var(--muted)">În același spațiu și interval (inclusiv montaj și demontaj):</p>${html}
+    <p style="margin-top:0;color:var(--muted)">În același spațiu și interval (inclusiv montaj și demontaj), sau același om de la noi prins în două locuri:</p>${html}
     <div class="actions"><button class="btn sec" id="cBack">Înapoi la formular</button><button class="btn pri" id="cForce">Salvează oricum</button></div>`);
   $('cBack').onclick = () => { restoreForm(back, saved, e); };
   $('cForce').onclick = () => { restoreForm(back, saved, e); submit(e, true); };
@@ -1160,6 +1263,7 @@ document.addEventListener('keydown', ev => {
   if (k === 'n' && !(S.data.user && S.data.user.readonly)) { ev.preventDefault(); openForm(null); }
   else if (k === '/') { ev.preventDefault(); if (S.view === 'acasa' || S.view === 'sarcini') setView('agenda'); $('q').focus(); }
   else if (k === 't') $('btnToday').click();
+  else if (k === 'b') openBrief(S.data.now);
   else if (['1', '2', '3', '4', '5'].includes(k)) setView(['acasa', 'agenda', 'sapt', 'luna', 'sarcini'][Number(k) - 1]);
   else if ((k === 'arrowleft' || k === 'arrowright') && (S.view === 'sapt' || S.view === 'luna')) {
     const dir = k === 'arrowleft' ? -1 : 1;
