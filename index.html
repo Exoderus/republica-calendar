@@ -1208,7 +1208,7 @@ function openForm(e, prefill) {
   const v = Object.assign({ status: 'Opțiune', data: S.selDay || S.data.now }, prefill || {}, e || {});
   const L = S.data.lists;
   const f = k => esc(shown(v[k]));
-  const hasLog = ['participanti','client','contact','valoare','avans','tehnic','bar'].some(k => v[k] !== '' && v[k] != null);
+  const hasLog = ['participanti','valoare','avans','tehnic','bar'].some(k => v[k] !== '' && v[k] != null);
   openSheet(`<h3>${isNew ? 'Eveniment nou' : 'Editează evenimentul'}</h3>
     <label>Titlu *</label><input id="f_titlu" value="${f('titlu')}" placeholder="ex. Concert Compact">
     <div class="row2">
@@ -1250,6 +1250,10 @@ function openForm(e, prefill) {
     </div>
     <div id="optBox"><label>Rezervare temporară valabilă până la</label><input id="f_optiunePana" type="date" value="${f('optiunePana')}"><div class="hint">Minim ${ZILE_OPTIUNE} zile. Nu se anulează singură: cu 3 zile înainte de termen responsabilul primește mail să confirme cu clientul, și tot așa zilnic până se decide.</div></div>
     <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
+    <div class="row2">
+      <div><label>Client / organizator</label><input id="f_client" value="${f('client')}" placeholder="firma sau persoana"></div>
+      <div><label>Persoană de contact</label><input id="f_contact" value="${f('contact')}" placeholder="nume, telefon, email"></div>
+    </div>
     <label>Necesar logistic</label>
     <div class="mods" id="modsBox">${(S.data.modules || []).map(m => `<label class="mod"><input type="checkbox" value="${esc(m.cod)}" ${modsOf(v).includes(m.cod) ? 'checked' : ''}>${esc(m.nume)}</label>`).join('')}</div>
     <div class="hint">${(S.data.modules || []).length ? `Fiecare bifă creează sarcinile oamenilor implicați. Concession se bifează singur peste ${esc(L.pragConcession)} de spectatori în ${esc(L.spatiuConcession)}.` : 'Lista de module nu s-a încărcat. Motorul din Apps Script trebuie actualizat.'}</div>
@@ -1271,9 +1275,7 @@ function openForm(e, prefill) {
         <div class="hint">Dacă modifici titlul, data, ora, spațiul, descrierea, afișul sau linkul de bilete după aprobare, aprobarea se anulează și trebuie dată din nou.</div>
       </div>
     </details>
-    <details ${hasLog ? 'open' : ''}><summary>Client, bani și logistică</summary>
-      <label>Client / partener</label><input id="f_client" value="${f('client')}">
-      <label>Contact (nume, telefon, email)</label><input id="f_contact" value="${f('contact')}">
+    <details ${hasLog ? 'open' : ''}><summary>Bani și logistică</summary>
       <div class="row2">
         <div><label>Valoare (lei)</label><input id="f_valoare" inputmode="decimal" value="${f('valoare')}"><div class="hint" id="occHint2"></div></div>
         <div><label>Avans (lei)</label><input id="f_avans" inputmode="decimal" value="${f('avans')}"></div>
