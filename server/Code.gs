@@ -370,7 +370,10 @@ function readTemplates_() {
     .filter(r => String(r[0]).trim() && String(r[1]).trim() && String(r[2]).trim())
     .map(r => ({
       cod: String(r[0]).trim(), modul: String(r[1]).trim(), sarcina: String(r[2]).trim(),
-      responsabil: String(r[3]).trim(), zile: Number(String(r[4]).replace(',', '.')) || 0
+      responsabil: String(r[3]).trim(),
+      // „R+2” = la 2 zile după rezervare; un număr simplu = zile înainte de eveniment (negativ = după)
+      rez: /^R/i.test(String(r[4]).trim()),
+      zile: Number(String(r[4]).trim().replace(/^R\+?/i, '').replace(',', '.')) || 0
     }));
 }
 
@@ -465,7 +468,12 @@ function syncTasks_(pairs) {
       const want = mods.indexOf(tp.modul) >= 0;
       const t = mine.find(x => x.sablon === tp.cod);
       const resp = tplResp_(tp, ev), text = tplText_(tp, ev);
-      const termen = addDays_(ev.data, -tp.zile);
+      let termen = addDays_(ev.data, -tp.zile);
+      if (tp.rez) {
+        const rezData = String(ev.creatLa || stamp_()).slice(0, 10);
+        termen = addDays_(rezData, tp.zile);
+        if (termen > ev.data) termen = ev.data;
+      }
       if (want && !t) {
         const nt = {
           id: newSimpleId_('T', all.concat(created)), eventId: ev.id, modul: tp.modul, sarcina: text,
@@ -480,7 +488,7 @@ function syncTasks_(pairs) {
       if (want && t.stare === T_CANCEL) { t.stare = T_OPEN; dirty = true; }
       if (!want && t.stare === T_OPEN) { t.stare = T_CANCEL; dirty = true; }
       if (t.stare === T_OPEN) {
-        if (t.termen !== termen && prev && prev.data !== ev.data) { t.termen = termen; dirty = true; }
+        if (t.termen !== termen && prev && prev.data !== ev.data && !tp.rez) { t.termen = termen; dirty = true; }
         if (tp.responsabil.charAt(0) === '@' && prev && t.responsabil === tplResp_(tp, prev) && t.responsabil !== resp) {
           t.responsabil = resp; dirty = true;
         }
