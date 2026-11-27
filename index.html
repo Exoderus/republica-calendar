@@ -693,9 +693,8 @@ function renderHome() {
   // De rezolvat
   const soon = live.filter(e => e.data >= today && e.data <= addDaysIso(today, 14));
   const issues = [];
-  opts.filter(e => e.optiunePana && e.optiunePana <= addDaysIso(today, 2)).forEach(e => issues.push([e, optState(e) === 'expired' ? 'Opțiune expirată pe ' + shortDay(e.optiunePana) : 'Opțiunea expiră ' + shortDay(e.optiunePana), 'var(--red)']));
+  opts.filter(e => e.optiunePana && e.optiunePana <= addDaysIso(today, 3)).forEach(e => issues.push([e, optState(e) === 'expired' ? 'De confirmat: opțiunea a expirat pe ' + shortDay(e.optiunePana) : 'De confirmat: opțiunea expiră ' + shortDay(e.optiunePana), optState(e) === 'expired' || e.optiunePana <= addDaysIso(today, 1) ? 'var(--red)' : 'var(--amber)']));
   soon.filter(e => e.data <= addDaysIso(today, 7)).forEach(e => { const r = readiness(e); if (r.total && r.gata < r.total) { const st = readyState(e, r); if (st === 'bad') issues.push([e, (r.late ? 'Sarcină critică întârziată' : 'Nepregătit, e mâine') + ' (' + r.gata + '/' + r.total + '): ' + r.list.filter(t => t.stare !== 'Gata').map(t => shown(t.sarcina)).slice(0, 2).join('; '), 'var(--red)']); } });
-  soon.filter(e => (e.montaj || e.demontaj) && (!e.deschide || !e.inchide)).forEach(e => issues.push([e, 'Lipsește omul de la ' + (!e.deschide ? 'montaj' : 'demontaj'), 'var(--rust)']));
   soon.filter(e => !e.sfarsit).forEach(e => issues.push([e, 'Fără oră de final', 'var(--amber)']));
   soon.filter(e => !e.responsabil).forEach(e => issues.push([e, 'Fără responsabil', 'var(--rust)']));
   h += `<section class="panel"><h4>De rezolvat <small>următoarele 14 zile</small></h4>` +
@@ -768,13 +767,13 @@ function openBrief(day) {
   const mom = [];
   evs.forEach(e => {
     const today = e.data === day, col = colorOf(e.spatiu), t = shown(e.titlu);
-    if (e.montaj && (e.montajData ? e.montajData === day : today)) mom.push([e.montaj, e, 'Montaj începe' + (e.echipOrg ? ' · echipamentul lor: ' + e.echipOrg.toLowerCase() : ''), e.deschide ? 'deschide: ' + e.deschide : 'nimeni ales la montaj']);
+    if (e.montaj && (e.montajData ? e.montajData === day : today)) mom.push([e.montaj, e, 'Montaj începe' + (e.echipOrg ? ' · echipamentul lor: ' + e.echipOrg.toLowerCase() : ''), 'deschide: ' + (e.deschide || DE_TURA)]);
     if (!today) return;
     if (e.proba) mom.push([e.proba, e, 'Probă de sunet', 'Bogdan']);
     if (e.acces) mom.push([e.acces, e, 'Acces public', e.responsabil ? 'resp.: ' + e.responsabil : '']);
     mom.push([e.start, e, isBlock(e) ? 'Blocaj / mentenanță' : 'Început' + (e.participanti ? ' · ' + e.participanti + ' persoane estimate' : ''), e.responsabil ? 'resp.: ' + e.responsabil : '']);
     if (e.sfarsit) mom.push([e.sfarsit, e, 'Final', '']);
-    if (e.demontaj) mom.push([e.demontaj, e, 'Demontaj gata', e.inchide ? 'închide: ' + e.inchide : 'nimeni ales la demontaj']);
+    if (e.demontaj) mom.push([e.demontaj, e, 'Demontaj gata', 'închide: ' + (e.inchide || DE_TURA)]);
   });
   const key = t => { const m = minOf(t); return m === null ? 9999 : m; };
   mom.sort((a, b) => key(a[0]) - key(b[0]));
@@ -901,6 +900,9 @@ const TIPURI_PRIVATE = ['Închiriere sală','Închiriază un film','Intern'];
 function defVizibil(tip) { return TIPURI_PRIVATE.includes(tip || '') || /^Blocaj/i.test(tip || '') ? 'Privat' : 'Public'; }
 function vizOf(e) { return e.vizibil === 'Public' || e.vizibil === 'Privat' ? e.vizibil : defVizibil(e.tip); }
 function pubTitle(e) { return shown(e.titluPublic) || shown(e.titlu); }
+const DE_TURA = 'Omul de tură', ZILE_OPTIUNE = 10;
+/* o opțiune nouă ține minim 10 zile, dar nu după ziua evenimentului */
+function optMin(data) { const m = addDaysIso(S.data.now, ZILE_OPTIUNE); return data && data < m ? data : m; }
 const MONTAJ_KEYS = ['montaj','demontaj','deschide','inchide','echipOrg','configurare','contactTehnic','montajData','proba','acces'];
 function dayN(d) { const p = String(d || '').split('-').map(Number); return p.length === 3 ? Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5) : 0; }
 function durMin(m) { m = Math.round(m); if (m <= 0) return ''; const h = Math.floor(m / 60), mi = m % 60; return [h && h + ' h', mi && mi + ' min'].filter(Boolean).join(' '); }
@@ -931,8 +933,8 @@ function montajHtml(e) {
   if (e.acces) r.push(['Acces public', 'de la ' + esc(e.acces)]);
   if (e.demontaj) r.push(['Demontaj', `până la ${esc(e.demontaj)}${dd ? ` <span class="hint">(${dd} după final)</span>` : ''}`]);
   const occ = occTxt(e); if (occ) r.unshift(['Sala ocupată', `<b>${occ.replace(/^Sala ocupată /, '')}</b>`]);
-  r.push(['Montaj, de la noi', e.deschide ? esc(e.deschide) + ' <span class="hint">deschide, predă echipamentele, supraveghează</span>' : '<b style="color:var(--red)">nimeni încă</b>']);
-  r.push(['Demontaj, de la noi', e.inchide ? esc(e.inchide) + ' <span class="hint">supraveghează, preia echipamentele, închide</span>' : '<b style="color:var(--red)">nimeni încă</b>']);
+  r.push(['Montaj, de la noi', e.deschide ? esc(e.deschide) + ' <span class="hint">deschide, predă echipamentele, supraveghează</span>' : esc(DE_TURA) + ' <span class="hint">cine e pe grafic în ziua aceea</span>']);
+  r.push(['Demontaj, de la noi', e.inchide ? esc(e.inchide) + ' <span class="hint">supraveghează, preia echipamentele, închide</span>' : esc(DE_TURA) + ' <span class="hint">cine e pe grafic în ziua aceea</span>']);
   if (e.echipOrg) r.push(['Echipamentul lor', esc(e.echipOrg)]);
   if (e.configurare) r.push(['Sala', esc(e.configurare)]);
   if (e.contactTehnic) r.push(['Tehnic organizator', esc(shown(e.contactTehnic))]);
@@ -1194,8 +1196,8 @@ function openForm(e, prefill) {
       </div>
       <div class="hint" id="durHint"></div>
       <div class="row2">
-        <div><label>Om de la noi la montaj</label><select id="f_deschide">${opts(L.responsabili, v.deschide, '—')}</select></div>
-        <div><label>Om de la noi la demontaj</label><select id="f_inchide">${opts(L.responsabili, v.inchide, '—')}</select></div>
+        <div><label>Om de la noi la montaj</label><select id="f_deschide">${opts([DE_TURA].concat(L.responsabili), v.deschide || DE_TURA)}</select></div>
+        <div><label>Om de la noi la demontaj</label><select id="f_inchide">${opts([DE_TURA].concat(L.responsabili), v.inchide || DE_TURA)}</select></div>
       </div>
       <div class="row2">
         <div><label>Vin cu echipamentul lor?</label><select id="f_echipOrg">${opts(ECHIP_OPTS, v.echipOrg, '—')}</select></div>
@@ -1203,7 +1205,7 @@ function openForm(e, prefill) {
       </div>
       <label>Contact tehnic organizator (nume, telefon)</label><input id="f_contactTehnic" value="${f('contactTehnic')}" placeholder="omul lor de sunet / lumini">
     </div>
-    <div id="optBox"><label>Rezervare temporară valabilă până la</label><input id="f_optiunePana" type="date" value="${f('optiunePana')}"></div>
+    <div id="optBox"><label>Rezervare temporară valabilă până la</label><input id="f_optiunePana" type="date" value="${f('optiunePana')}"><div class="hint">Minim ${ZILE_OPTIUNE} zile. Nu se anulează singură: cu 3 zile înainte de termen responsabilul primește mail să confirme cu clientul, și tot așa zilnic până se decide.</div></div>
     <label>Responsabil</label><select id="f_responsabil">${opts(L.responsabili, v.responsabil, '—')}</select>
     <label>Necesar logistic</label>
     <div class="mods" id="modsBox">${(S.data.modules || []).map(m => `<label class="mod"><input type="checkbox" value="${esc(m.cod)}" ${modsOf(v).includes(m.cod) ? 'checked' : ''}>${esc(m.nume)}</label>`).join('')}</div>
@@ -1311,8 +1313,11 @@ function bindOptBox() {
   const sync = () => {
     const on = $('f_status').value === 'Opțiune';
     $('optBox').style.display = on ? '' : 'none';
-    if (on && !$('f_optiunePana').value) $('f_optiunePana').value = addDaysIso(S.data.now, 3);
+    if (on && (!$('f_optiunePana').value || auto)) { $('f_optiunePana').value = optMin($('f_data').value); auto = true; }
   };
+  let auto = false;
+  $('f_optiunePana').addEventListener('input', () => auto = false);
+  $('f_data').addEventListener('input', () => { if (auto) sync(); });
   $('f_status').onchange = sync; sync();
 }
 
@@ -1323,6 +1328,8 @@ function readForm(e) {
   if ($('modsBox')) o.module = Array.from($('modsBox').querySelectorAll('input:checked')).map(i => i.value).join(',');
   if (o.status !== 'Opțiune') o.optiunePana = '';
   if (o.vizibil === 'Privat') o.aprobatPublicare = '';
+  if (!o.montaj) o.deschide = '';
+  if (!o.demontaj) o.inchide = '';
   return o;
 }
 
@@ -1332,6 +1339,10 @@ function submit(e, force) {
   if (!input.data) return toast('Alege data.');
   if (!input.spatiu) return toast('Alege spațiul.');
   if (!input.start) return toast('Lipsește ora de început.');
+  if (input.status === 'Opțiune' && (!e || e.status !== 'Opțiune') && (!input.optiunePana || input.optiunePana < optMin(input.data))) {
+    input.optiunePana = optMin(input.data); if ($('f_optiunePana')) $('f_optiunePana').value = input.optiunePana;
+    toast('Rezervarea ține minim ' + ZILE_OPTIUNE + ' zile: până ' + shortDay(input.optiunePana) + '.', 3500);
+  }
   const o = { force: force };
   if (e) o.expectedModified = e.modificatLa;
   else if ($('r_mode') && $('r_mode').value) o.repeat = { mode: $('r_mode').value, count: Number($('r_count').value) || 1 };
