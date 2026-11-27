@@ -1295,10 +1295,8 @@ function openForm(e, prefill) {
         <div><label>Om de la noi la montaj</label><select id="f_deschide">${opts([DE_TURA].concat(L.responsabili), v.deschide || DE_TURA)}</select></div>
         <div><label>Om de la noi la demontaj</label><select id="f_inchide">${opts([DE_TURA].concat(L.responsabili), v.inchide || DE_TURA)}</select></div>
       </div>
-      <div class="row2">
-        <div><label>Echipament</label><select id="f_echipOrg">${opts(ECHIP_OPTS, echipVal(v.echipOrg), '—')}</select></div>
-        <div><label>Sprijin tehnic la montaj</label><select id="f_sprijinTehnic">${opts(SPRIJIN_OPTS, v.sprijinTehnic, '—')}</select></div>
-      </div>
+      <label>Echipament</label><select id="f_echipOrg">${opts(ECHIP_OPTS, echipVal(v.echipOrg), '—')}</select>
+      <label>Sprijin tehnic la montaj</label><select id="f_sprijinTehnic">${opts(SPRIJIN_OPTS, v.sprijinTehnic, '—')}</select>
       <div class="hint" id="tehCost" style="display:none">Tehnicianul nostru înseamnă cost de om: include-l în Valoare și în contract, separat de chiria echipamentelor.</div>
       <label>Configurare sală</label><select id="f_configurare">${opts(CONFIG_OPTS, v.configurare, '—')}</select>
       <div id="tehBox"><label id="tehLbl">Ce închiriază de la noi</label><textarea id="f_tehnic" rows="3" placeholder="ex. 2 microfoane wireless, proiector, 4 monitoare de scenă, mixer">${f('tehnic')}</textarea>
