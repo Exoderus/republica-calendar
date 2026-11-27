@@ -634,7 +634,7 @@ function renderMonth() {
     if (ev.length > maxPills) h += `<div class="more">+${ev.length - maxPills}</div>`;
     h += `</div>`;
   }
-  h += `</div><div class="legend"><span><i class="c"></i>Confirmat</span><span><i class="o"></i>Opțiune: dată propusă, neconfirmată</span><span>Culoarea arată sala: ${S.data.lists.spatii.filter(x => x.name !== 'În afara locației').map(x => `<b style="color:${esc(x.color)}">${esc(x.name)}</b>`).join(', ')}</span></div><div class="daypanel" id="dayPanel"></div>`;
+  h += `</div><div class="legend"><span><i class="c"></i>Confirmat</span><span><i class="o"></i>Opțiune: dată propusă, neconfirmată</span><span>Culoarea arată sala: ${S.data.lists.spatii.map(x => `<b style="color:${esc(x.color)}">${esc(x.name)}</b>`).join(', ')}</span></div><div class="daypanel" id="dayPanel"></div>`;
   $('view').innerHTML = h;
   $('mPrev').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() - 1, 1); S.selDay = null; renderMonth(); };
   $('mNext').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() + 1, 1); S.selDay = null; renderMonth(); };
@@ -754,7 +754,7 @@ function renderHome() {
 
   // Ocupare 30 de zile
   const end30 = addDaysIso(today, 29);
-  const occ = D.lists.spatii.filter(sp => sp.name !== 'În afara locației').map(sp => {
+  const occ = D.lists.spatii.filter(sp => sp.name !== 'Terasă').map(sp => {
     const ev = live.filter(e => e.data >= today && e.data <= end30 && (e.spatiu === sp.name || e.spatiu === 'Toată locația'));
     const days = new Set(ev.map(e => e.data)).size;
     const hrs = Math.round(ev.reduce((a, e) => a + occMinutes(e), 0) / 60);
@@ -793,7 +793,7 @@ function renderWeek() {
     });
     $('view').innerHTML = h; bindWeekNav(); bindCards($('view')); return;
   }
-  const spaces = S.data.lists.spatii.filter(sp => !S.hiddenSpaces.has(sp.name) && (sp.name !== 'În afara locației' || ev.some(e => e.spatiu === sp.name)));
+  const spaces = S.data.lists.spatii.filter(sp => !S.hiddenSpaces.has(sp.name) && (sp.name !== 'Terasă' || ev.some(e => e.spatiu === sp.name)));
   h += `<div class="wgrid"><div class="wh"></div>` + days.map(d => { const x = parseIso(d); return `<div class="wh ${d === today ? 'today' : ''}" data-brief="${d}" style="cursor:pointer" title="Brief-ul zilei">${RO_ZILE[x.getDay()]}<b>${x.getDate()} ${RO_LUNI[x.getMonth()].slice(0, 3)}</b></div>`; }).join('');
   spaces.forEach(sp => {
     h += `<div class="sp"><i style="background:${esc(sp.color)}"></i>${esc(sp.name)}</div>`;
@@ -985,7 +985,7 @@ const FIELDS = [
   ['vizibil','Vizibil'],['titluPublic','Titlu public'],['descrierePublic','Descriere scurtă'],['afis','Afiș (link)'],['aprobatPublicare','Aprobat pentru publicare']
 ];
 const PUBLIC_KEYS = ['vizibil','titluPublic','descrierePublic','afis','aprobatPublicare'];
-const TIPURI_PRIVATE = ['Închiriere sală','Închiriază un film','Intern'];
+const TIPURI_PRIVATE = ['Închiriere sală','Închiriază un film','Intern','Rezervare terasă'];
 function defVizibil(tip) { return TIPURI_PRIVATE.includes(tip || '') || /^Blocaj/i.test(tip || '') ? 'Privat' : 'Public'; }
 function vizOf(e) { return e.vizibil === 'Public' || e.vizibil === 'Privat' ? e.vizibil : defVizibil(e.tip); }
 function pubTitle(e) { return shown(e.titluPublic) || shown(e.titlu); }

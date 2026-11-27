@@ -22,7 +22,7 @@ const TZ = 'Europe/Bucharest';
 
 // Spații cu reguli speciale la verificarea suprapunerilor (numele trebuie să fie identice cu cele din „Liste”)
 const SPATIU_TOT = 'Toată locația';      // se suprapune cu orice spațiu
-const SPATIU_EXTERN = 'În afara locației'; // nu se suprapune cu nimic
+const SPATIU_EXTERN = 'Terasă'; // mesele de pe terasă se rezervă în paralel, deci terasa nu intră în verificarea de suprapuneri
 const STATUS_ANULAT = 'Anulat';
 const STATUS_OPTIUNE = 'Opțiune';   // rezervare temporară, până la confirmare
 const ZILE_OPTIUNE = 10;           // o opțiune nouă ține cel puțin atâtea zile (sau până în ziua evenimentului)
@@ -763,7 +763,7 @@ function staffWindows_(e) {
 }
 
 /** Ce apare implicit în programul public: tot, mai puțin închirierile, internele și blocajele. */
-const TIPURI_PRIVATE_ = ['Închiriere sală', 'Închiriază un film', 'Intern'];
+const TIPURI_PRIVATE_ = ['Închiriere sală', 'Închiriază un film', 'Intern', 'Rezervare terasă'];
 function defaultVizibil_(tip) { tip = String(tip || ''); return TIPURI_PRIVATE_.indexOf(tip) >= 0 || /^Blocaj/i.test(tip) ? 'Privat' : 'Public'; }
 
 let PAUZA_ = null;
