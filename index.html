@@ -86,7 +86,7 @@
   .card .meta{font-size:13px;color:var(--muted)}
   .card.cancel .title{text-decoration:line-through;color:var(--muted)}
   .badge{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:2px}
-  .b-Opțiune{background:#FBEFD9;color:#8A5A07}
+  .b-Opțiune{background:#FADCE3;color:#9B1C3C}
   .b-Confirmat{background:#DDEBE3;color:var(--green)}
   .b-Anulat{background:#EEE;color:#777}
   .b-exp{background:#F6DAD7;color:var(--red)}
@@ -113,13 +113,13 @@
   .cell.sel{border-color:var(--green)}
   .cell .n{font-size:12px;font-weight:700;margin-bottom:2px}
   .pill{font-size:10.5px;line-height:1.25;color:#fff;border-radius:4px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .pill.opt{background:#fff !important;border:1px dashed;color:var(--ink)}
+  .pill.opt{background:#FADCE3 !important;border:1px dashed;border-left:4px solid;color:#7A1F35}
   .pill.cancel{text-decoration:line-through;opacity:.45}
   .more{font-size:10.5px;color:var(--muted);font-weight:700}
   .daypanel{margin-top:14px}
   .dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
   .dots i{width:7px;height:7px;border-radius:50%;display:block}
-  .dots i.opt{background:#fff !important;border:1.5px solid}
+  .dots i.opt{background:#F2A7B8 !important;border:1.5px dashed}
   .dots i.cancel{opacity:.35}
   @media (max-width:599px){ .cell{min-height:52px;text-align:center} .cell .n{font-size:13px} .dots{justify-content:center} }
   @media (min-width:800px){ .cell{min-height:110px} .pill{font-size:12px} }
@@ -210,12 +210,16 @@
   .wgrid .wc .add{display:none;color:var(--muted);font-size:12px;font-weight:700;text-align:center;padding:4px;border:1px dashed var(--line);border-radius:8px;margin-top:auto}
   .wgrid .wc:hover .add{display:block}
   body.ro .wgrid .wc .add{display:none !important}
-  .wb{border-radius:8px;padding:5px 7px;font-size:12px;line-height:1.3;border-left:4px solid;background:#F6F3EC;cursor:pointer}
+  .wb{border-radius:8px;padding:5px 7px;font-size:12px;line-height:1.3;border-left:4px solid;background:#E4EEE8;cursor:pointer}
   .wb:hover{filter:brightness(.97)}
   .wb .tm{font-weight:800;font-size:11.5px;color:var(--muted)}
   .wb .tt{font-weight:700;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .wb.opt{background:#fff;border-left-style:dashed;box-shadow:inset 0 0 0 1px #E6D9BD}
-  .wb.cancel{opacity:.45}
+  .wb.opt{background:#FADCE3;border-left-style:dashed;box-shadow:inset 0 0 0 1px #F2B8C6}
+  .card.opt{background:#FDF0F3}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:12.5px;color:var(--muted);margin:10px 2px 0}
+  .legend i{display:inline-block;width:22px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+  .legend i.c{background:var(--green)} .legend i.o{background:#FADCE3;border:1px dashed var(--green);border-left:4px solid var(--green)}
+  .wb.cancel{opacity:.45;background:#F1EEE8}
   .wb.cancel .tt{text-decoration:line-through}
   .wb.mont{background:repeating-linear-gradient(135deg,#F3EFE7 0 6px,#EAE4D8 6px 12px)}
   .wlegend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
@@ -522,7 +526,7 @@ function render() {
 }
 
 function cardHtml(e) {
-  return `<div class="card ${e.status === 'Anulat' ? 'cancel' : ''} ${isBlock(e) ? 'blk' : ''}" data-id="${esc(e.id)}">
+  return `<div class="card ${e.status === 'Anulat' ? 'cancel' : ''} ${e.status === 'Opțiune' && !e._montaj ? 'opt' : ''} ${isBlock(e) ? 'blk' : ''}" data-id="${esc(e.id)}">
     <div class="bar" style="background:${esc(colorOf(e.spatiu))}"></div>
     <div class="body">
       <div class="time">${esc(e._montaj ? 'de la ' + e.start : timeRange(e))} · ${esc(e.spatiu)}${e._montaj ? ' <span class="badge b-Opțiune">Montaj pentru ' + esc(shortDay(e._montaj)) + '</span>' : statusBadge(e)}</div>
@@ -599,7 +603,7 @@ function renderMonth() {
     if (ev.length > maxPills) h += `<div class="more">+${ev.length - maxPills}</div>`;
     h += `</div>`;
   }
-  h += `</div><div class="daypanel" id="dayPanel"></div>`;
+  h += `</div><div class="legend"><span><i class="c"></i>Confirmat</span><span><i class="o"></i>Opțiune: dată propusă, neconfirmată</span><span>Culoarea arată sala: ${S.data.lists.spatii.filter(x => x.name !== 'În afara locației').map(x => `<b style="color:${esc(x.color)}">${esc(x.name)}</b>`).join(', ')}</span></div><div class="daypanel" id="dayPanel"></div>`;
   $('view').innerHTML = h;
   $('mPrev').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() - 1, 1); S.selDay = null; renderMonth(); };
   $('mNext').onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() + 1, 1); S.selDay = null; renderMonth(); };
@@ -750,7 +754,7 @@ function renderWeek() {
       }).join('') + `<div class="add">+ adaugă</div></div>`;
     });
   });
-  h += `</div><div class="wlegend"><span><i></i>confirmat</span><span><i style="background:#fff;outline:1px dashed #D8C9A8"></i>opțiune</span><span><i style="background:repeating-linear-gradient(135deg,#F3EFE7 0 4px,#EAE4D8 4px 8px)"></i>montaj în altă zi</span><span>Apasă pe o celulă goală ca să adaugi un eveniment în sala și ziua respectivă.</span></div>`;
+  h += `</div><div class="wlegend"><span><i style="background:#E4EEE8"></i>confirmat</span><span><i style="background:#FADCE3;outline:1px dashed #F2B8C6"></i>opțiune (propusă, neconfirmată)</span><span><i style="background:repeating-linear-gradient(135deg,#F3EFE7 0 4px,#EAE4D8 4px 8px)"></i>montaj în altă zi</span><span>Apasă pe o celulă goală ca să adaugi un eveniment în sala și ziua respectivă.</span></div>`;
   $('view').innerHTML = h; bindWeekNav();
   $('view').querySelectorAll('.wb').forEach(b => b.onclick = x => { x.stopPropagation(); openDetail(b.dataset.id); });
   $('view').querySelectorAll('[data-brief]').forEach(b => b.onclick = () => openBrief(b.dataset.brief));
@@ -1210,7 +1214,7 @@ function openForm(e, prefill) {
     </div>
     <div class="row2">
       <div><label>Tip</label><select id="f_tip">${opts(L.tipuri, v.tip, '—')}</select></div>
-      <div><label>Status</label><select id="f_status">${opts(L.statusuri, v.status)}</select></div>
+      <div><label>Status</label><select id="f_status">${L.statusuri.concat(L.statusuri.includes(v.status) ? [] : [v.status]).map(x => `<option value="${esc(x)}" ${x === v.status ? 'selected' : ''}>${esc(x === 'Opțiune' ? 'Opțiune (propusă, neconfirmată)' : x)}</option>`).join('')}</select></div>
     </div>
     <div class="box">
       <div class="boxh">Orar tehnic, montaj și demontaj</div>
