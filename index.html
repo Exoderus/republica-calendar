@@ -105,6 +105,7 @@
   .btn:disabled{opacity:.45;cursor:default}
   input.tm-in{font-variant-numeric:tabular-nums} input.tm-in.bad{border-color:var(--red);background:#FCEDEB}
   .dayhead.flash{animation:flash 1.5s ease-out} @keyframes flash{0%,40%{background:#FADCE3}100%{background:transparent}}
+  .secure{font-weight:700;letter-spacing:.2px} .secure span{font-weight:400;opacity:.75;font-size:.92em}
   .navbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
   .bnav{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
@@ -343,7 +344,7 @@
 <div class="login" id="login">
   <img src="logo-white.png" alt="Republica | 1963">
   <h1>Calendar evenimente</h1>
-  <p>Intră cu contul Google pe care l-ai dat pentru echipă.</p>
+  <p class="secure"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Autentificare securizată prin Google<br><span>Acces doar pentru echipa Republica | 1963</span></p>
   <div class="err" id="loginErr" style="display:none"></div>
   <button id="loginBtn">Intră cu Google</button>
 </div>
