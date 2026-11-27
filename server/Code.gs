@@ -450,6 +450,11 @@ function modsOf_(ev) {
   const m = String(ev.module || '').split(',').map(x => x.trim()).filter(Boolean);
   // dacă au oră de montaj sau demontaj, cineva trebuie să deschidă și să închidă
   if ((ev.montaj || ev.demontaj) && m.indexOf('montaj') < 0) m.push('montaj');
+  // dacă închiriază echipamente de la noi, cineva trebuie să le pregătească; altfel modulul dispare
+  const inch = /^(Parțial|Nu)/.test(String(ev.echipOrg || ''));
+  const i = m.indexOf('echipament');
+  if (inch && i < 0) m.push('echipament');
+  if (!inch && i >= 0) m.splice(i, 1);
   return m;
 }
 
