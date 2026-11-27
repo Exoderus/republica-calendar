@@ -28,7 +28,7 @@ const STATUS_OPTIUNE = 'Opțiune';   // rezervare temporară, până la confirma
 const ZILE_OPTIUNE = 10;           // o opțiune nouă ține cel puțin atâtea zile (sau până în ziua evenimentului)
 const ZILE_AVERTIZARE = 3;         // cu câte zile înainte de expirare apare în rezumatul zilnic
 const DE_TURA = 'Omul de tură';    // la montaj și demontaj: cine e pe grafic în ziua aceea
-const APP_URL = 'https://exoderus.github.io/republica-calendar/';
+const APP_URL = 'https://calendar.republica1963.ro/';
 
 const COLS = ['id', 'titlu', 'tip', 'spatiu', 'data', 'start', 'sfarsit', 'montaj', 'demontaj',
   'status', 'responsabil', 'client', 'contact', 'participanti', 'valoare', 'avans',
