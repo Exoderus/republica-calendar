@@ -479,7 +479,7 @@ function filtered() {
     !S.hiddenSpaces.has(e.spatiu) &&
     (!S.resp || e.responsabil === S.resp) &&
     (S.showCancelled || e.status !== 'Anulat') &&
-    (!q || [e.titlu, e.client, e.contact, e.note, e.tip, e.spatiu, e.responsabil].join(' ').toLowerCase().includes(q))
+    (!q || [e.titlu, e.client, e.contact, e.adusDe, e.note, e.tip, e.spatiu, e.responsabil].join(' ').toLowerCase().includes(q))
   ).sort((a, b) => (a.data + (a.start || '')).localeCompare(b.data + (b.start || '')));
 }
 
@@ -928,7 +928,7 @@ $('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); };
 const FIELDS = [
   ['tip','Tip'],['spatiu','Spațiu'],['data','Data'],['start','Ora început'],['sfarsit','Ora sfârșit'],
   ['status','Status'],['optiunePana','Opțiune valabilă până la'],['responsabil','Responsabil'],
-  ['client','Client / partener'],['contact','Contact'],['participanti','Participanți estimați'],
+  ['client','Client / partener'],['contact','Contact'],['adusDe','Contact adus de'],['participanti','Participanți estimați'],
   ['valoare','Valoare (lei)'],['avans','Avans (lei)'],['pachetBar','Pachet bar inclus (lei)'],['barInterval','Bar: interval'],
   ['bilPlatforma','Bilete: platformă'],['bilLink','Bilete: link'],['capacitate','Capacitate'],['bilVandute','Bilete vândute'],
   ['tehnic','Necesar tehnic'],['bar','Bar și consum'],['note','Note'],
@@ -1254,6 +1254,9 @@ function openForm(e, prefill) {
       <div><label>Client / organizator</label><input id="f_client" value="${f('client')}" placeholder="firma sau persoana"></div>
       <div><label>Persoană de contact</label><input id="f_contact" value="${f('contact')}" placeholder="nume, telefon, email"></div>
     </div>
+    <label>Contact adus de</label><input id="f_adusDe" list="adusList" value="${f('adusDe')}" placeholder="cine a adus clientul (alege sau scrie un nume)" autocomplete="off">
+    <datalist id="adusList">${L.responsabili.map(x => `<option value="${esc(x)}">`).join('')}</datalist>
+    <div class="hint">Contează pentru comisioane, de exemplu evenimentele aduse de Ioana.</div>
     <label>Necesar logistic</label>
     <div class="mods" id="modsBox">${(S.data.modules || []).map(m => `<label class="mod"><input type="checkbox" value="${esc(m.cod)}" ${modsOf(v).includes(m.cod) ? 'checked' : ''}>${esc(m.nume)}</label>`).join('')}</div>
     <div class="hint">${(S.data.modules || []).length ? `Fiecare bifă creează sarcinile oamenilor implicați. Concession se bifează singur peste ${esc(L.pragConcession)} de spectatori în ${esc(L.spatiuConcession)}.` : 'Lista de module nu s-a încărcat. Motorul din Apps Script trebuie actualizat.'}</div>

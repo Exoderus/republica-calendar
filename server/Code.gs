@@ -35,7 +35,7 @@ const COLS = ['id', 'titlu', 'tip', 'spatiu', 'data', 'start', 'sfarsit', 'monta
   'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat', 'optiunePana',
   'module', 'barInterval', 'pachetBar', 'bilPlatforma', 'bilLink', 'capacitate', 'bilVandute', 'spectatoriReali', 'consumBar', 'feedback',
   'deschide', 'inchide', 'echipOrg', 'configurare', 'contactTehnic', 'acces', 'proba', 'montajData',
-  'titluPublic', 'descrierePublic', 'afis', 'vizibil', 'aprobatPublicare'];
+  'titluPublic', 'descrierePublic', 'afis', 'vizibil', 'aprobatPublicare', 'adusDe'];
 
 const LABELS = {
   titlu: 'Titlu', tip: 'Tip', spatiu: 'Spațiu', data: 'Data', start: 'Ora început',
@@ -50,7 +50,7 @@ const LABELS = {
   deschide: 'Deschide la montaj', inchide: 'Închide după demontaj', echipOrg: 'Vin cu echipamentul lor',
   configurare: 'Configurare sală', contactTehnic: 'Contact tehnic organizator',
   acces: 'Acces public de la', proba: 'Probă de sunet', montajData: 'Montaj din ziua',
-  titluPublic: 'Titlu public', descrierePublic: 'Descriere scurtă', afis: 'Afiș (link)', vizibil: 'Vizibil', aprobatPublicare: 'Aprobat pentru publicare'
+  titluPublic: 'Titlu public', descrierePublic: 'Descriere scurtă', afis: 'Afiș (link)', vizibil: 'Vizibil', aprobatPublicare: 'Aprobat pentru publicare', adusDe: 'Contact adus de'
 };
 
 const EDITABLE = Object.keys(LABELS);
