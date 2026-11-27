@@ -102,6 +102,7 @@
   .prow{border-left:4px solid var(--stone);background:#fff;border-radius:8px;padding:8px 12px;margin:8px 0;cursor:pointer}
   .prow:hover{background:#F4F1EA} .prow .t{font-size:15px;font-weight:600;margin-top:2px}
   .btn:disabled{opacity:.45;cursor:default}
+  input.tm-in{font-variant-numeric:tabular-nums} input.tm-in.bad{border-color:var(--red);background:#FCEDEB}
   .navbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
   .bnav{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
@@ -878,7 +879,38 @@ function openProgram(ym, tab) {
 function setView(v) { S.view = v; render(); window.scrollTo({ top: 0 }); }
 
 /* ---------- modal ---------- */
-function openSheet(html, wide) { $('sheet').innerHTML = html; $('sheet').classList.toggle('wide', !!wide); $('ov').classList.add('show'); $('sheet').scrollTop = 0; }
+/* Pe calculator, câmpul de oră nativ din Chrome (două coloane de derulat) e greu de folosit.
+   Îl înlocuim cu un câmp în care scrii ora (19, 1930, 19.30, 7:5) și o listă cu orele din jumătate în jumătate de oră. */
+const FINE_POINTER = window.matchMedia && matchMedia('(pointer:fine)').matches;
+function normTime(v) {
+  v = String(v || '').trim().replace(/[.,h ]/g, ':');
+  if (!v) return '';
+  let m = /^(\d{1,2})$/.exec(v) || /^(\d{1,2}):(\d{1,2})$/.exec(v) || /^(\d{2})(\d{2})$/.exec(v) || /^(\d)(\d{2})$/.exec(v);
+  if (!m) return null;
+  const h = +m[1], mi = +(m[2] || 0);
+  if (h > 23 || mi > 59) return null;
+  return String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0');
+}
+function enhanceTimes(root) {
+  if (!FINE_POINTER) return;
+  if (!$('timeList')) {
+    const dl = document.createElement('datalist'); dl.id = 'timeList';
+    for (let i = 0; i < 48; i++) { const o = document.createElement('option'); o.value = String(Math.floor(i / 2)).padStart(2, '0') + ':' + (i % 2 ? '30' : '00'); dl.appendChild(o); }
+    document.body.appendChild(dl);
+  }
+  root.querySelectorAll('input[type="time"]').forEach(el => {
+    const v = el.value; el.type = 'text'; el.value = v;
+    el.setAttribute('list', 'timeList'); el.setAttribute('placeholder', 'ex. 19:30'); el.setAttribute('maxlength', '5'); el.setAttribute('autocomplete', 'off');
+    el.classList.add('tm-in');
+    el.addEventListener('blur', () => {
+      const n = normTime(el.value);
+      if (n === null) { el.classList.add('bad'); toast('Ora „' + el.value + '” nu e bună. Scrie de forma 19:30.', 3500); return; }
+      el.classList.remove('bad');
+      if (n !== el.value) { el.value = n; el.dispatchEvent(new Event('input', { bubbles: true })); }
+    });
+  });
+}
+function openSheet(html, wide) { $('sheet').innerHTML = html; enhanceTimes($('sheet')); $('sheet').classList.toggle('wide', !!wide); $('ov').classList.add('show'); $('sheet').scrollTop = 0; }
 function closeSheet() { $('ov').classList.remove('show'); }
 $('ov').onclick = e => { if (e.target === $('ov')) closeSheet(); };
 
@@ -1324,6 +1356,7 @@ function bindOptBox() {
 function readForm(e) {
   const o = e ? { id: e.id } : {};
   FIELDS.forEach(([k]) => { const el = $('f_' + k); if (el) o[k] = el.value; });
+  ['start','sfarsit','montaj','demontaj','proba','acces'].forEach(k => { if (o[k] !== undefined) { const n = normTime(o[k]); o[k] = n === null ? o[k] : n; } });
   o.titlu = $('f_titlu').value;
   if ($('modsBox')) o.module = Array.from($('modsBox').querySelectorAll('input:checked')).map(i => i.value).join(',');
   if (o.status !== 'Opțiune') o.optiunePana = '';
@@ -1339,6 +1372,8 @@ function submit(e, force) {
   if (!input.data) return toast('Alege data.');
   if (!input.spatiu) return toast('Alege spațiul.');
   if (!input.start) return toast('Lipsește ora de început.');
+  const badT = ['start','sfarsit','montaj','demontaj','proba','acces'].find(k => input[k] && !/^\d{2}:\d{2}$/.test(input[k]));
+  if (badT) return toast('Verifică ora „' + input[badT] + '”. Scrie de forma 19:30.', 4000);
   if (input.status === 'Opțiune' && (!e || e.status !== 'Opțiune') && (!input.optiunePana || input.optiunePana < optMin(input.data))) {
     input.optiunePana = optMin(input.data); if ($('f_optiunePana')) $('f_optiunePana').value = input.optiunePana;
     toast('Rezervarea ține minim ' + ZILE_OPTIUNE + ' zile: până ' + shortDay(input.optiunePana) + '.', 3500);
@@ -1379,7 +1414,7 @@ function showConflicts(list, e) {
 }
 
 function restoreForm(html, values, e) {
-  $('sheet').innerHTML = html;
+  $('sheet').innerHTML = html; enhanceTimes($('sheet'));
   Object.keys(values).forEach(k => { const el = $('f_' + k); if (el) el.value = shown(values[k]); });
   const rp = submit._last.repeat;
   if (rp && $('r_mode')) { $('r_mode').value = rp.mode; $('r_count').value = rp.count; }
