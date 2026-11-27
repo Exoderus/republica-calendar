@@ -99,6 +99,11 @@
   .monthnav{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 10px}
   .monthnav h2{font-family:Fraunces,serif;margin:0;font-size:20px;color:var(--green)}
   .navbtn{border:1px solid var(--line);background:#fff;border-radius:10px;height:36px;min-width:40px;cursor:pointer;font-weight:700}
+  .prow{border-left:4px solid var(--stone);background:#fff;border-radius:8px;padding:8px 12px;margin:8px 0;cursor:pointer}
+  .prow:hover{background:#F4F1EA} .prow .t{font-size:15px;font-weight:600;margin-top:2px}
+  .btn:disabled{opacity:.45;cursor:default}
+  .navbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .bnav{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
   .wd{font-size:11px;font-weight:700;text-align:center;color:var(--muted);padding:4px 0}
   .cell{background:#fff;border-radius:8px;min-height:74px;padding:4px;cursor:pointer;overflow:hidden;border:2px solid transparent}
@@ -164,7 +169,7 @@
   .ready.bad{background:#F6DAD7;color:var(--red)}
   .chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;padding:4px 0}
   .chk i{font-style:normal;font-weight:800;width:18px;flex:none}
-  .chk.ok i{color:var(--green)} .chk.no i{color:var(--red)}
+  .chk.ok i{color:var(--green)} .chk.no i{color:var(--red)} .chk.wait i{color:#8A5A07}
   .chk.ok span{color:var(--muted)}
   .wb.blk, .rowev.blk .b{background:repeating-linear-gradient(135deg,#ECE7DD 0 6px,#E1DACB 6px 12px)}
   .card.blk{background:repeating-linear-gradient(135deg,#FFFFFF 0 10px,#F7F3EA 10px 20px)}
@@ -453,7 +458,7 @@ function load(silent) {
   if (silent) {
     ACTIONS.getData().then(r => { S.data = r; document.body.classList.toggle('ro', !!(r.user && r.user.readonly)); render(); }).catch(() => {});
   } else {
-    call('getData', [], r => { S.data = r; document.body.classList.toggle('ro', !!(r.user && r.user.readonly)); if (!S.month) { const t = parseIso(r.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); } render(); });
+    call('getData', [], r => { S.data = r; document.body.classList.toggle('ro', !!(r.user && r.user.readonly)); if (!S.month) { const t = parseIso(r.now); S.month = new Date(t.getFullYear(), t.getMonth(), 1); } render(); openPending(); });
   }
 }
 
@@ -484,6 +489,23 @@ function renderFilters() {
 }
 
 /* ---------- randare ---------- */
+function openPending() {
+  let id = null; try { id = sessionStorage.getItem('rcal.open'); sessionStorage.removeItem('rcal.open'); } catch (_) {}
+  if (!id) return;
+  if (S.data.events.some(x => x.id === id)) openDetail(id); else toast('Evenimentul din link nu mai e în calendar (a fost arhivat sau șters).', 4500);
+}
+window.addEventListener('hashchange', () => {
+  const m = /^#e=([^&]+)/.exec(location.hash || '');
+  if (!m || !S.data) return;
+  try { sessionStorage.setItem('rcal.open', decodeURIComponent(m[1])); } catch (_) {}
+  history.replaceState(null, '', location.pathname + location.search); openPending();
+});
+function eventLink(id) { return location.origin + location.pathname + '#e=' + encodeURIComponent(id); }
+function copyText(t, ok) {
+  const done = () => toast(ok || 'Copiat');
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done, () => prompt('Copiază de aici:', t));
+  else prompt('Copiază de aici:', t);
+}
 function render() {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === S.view));
   const noFilters = S.view === 'acasa' || S.view === 'sarcini';
@@ -639,7 +661,7 @@ function renderHome() {
   const h0 = new Date().getHours();
   const hi = h0 < 12 ? 'Bună dimineața' : h0 < 18 ? 'Bună ziua' : 'Bună seara';
 
-  let h = `<div class="hello"><h2>${hi}${me ? ', ' + esc(me) : ''}</h2><span class="hint">${esc(longDate(today))} &nbsp; <button class="navbtn" id="hBrief" style="padding:0 12px">Brief-ul zilei</button></span></div>`;
+  let h = `<div class="hello"><h2>${hi}${me ? ', ' + esc(me) : ''}</h2><span class="hint">${esc(longDate(today))} &nbsp; <button class="navbtn" id="hBrief" style="padding:0 12px">Brief-ul zilei</button> <button class="navbtn" id="hProg" style="padding:0 12px">Program public</button></span></div>`;
   h += `<div class="kpis">
     <div class="kpi" data-go="luna"><div class="k">Evenimente în ${lunaN}</div><div class="v">${conf + optN}</div><div class="s">${conf} confirmate · ${optN} opțiuni</div></div>
     <div class="kpi" data-go="luna"><div class="k">Valoare contractată în ${lunaN}</div><div class="v">${lei0(valLuna)}</div><div class="s">din câmpul Valoare</div></div>
@@ -672,7 +694,7 @@ function renderHome() {
   const soon = live.filter(e => e.data >= today && e.data <= addDaysIso(today, 14));
   const issues = [];
   opts.filter(e => e.optiunePana && e.optiunePana <= addDaysIso(today, 2)).forEach(e => issues.push([e, optState(e) === 'expired' ? 'Opțiune expirată pe ' + shortDay(e.optiunePana) : 'Opțiunea expiră ' + shortDay(e.optiunePana), 'var(--red)']));
-  soon.filter(e => e.data <= addDaysIso(today, 7)).forEach(e => { const r = readiness(e); if (r.total && r.gata < r.total) issues.push([e, 'Nepregătit ' + r.gata + '/' + r.total + ': ' + r.list.filter(t => t.stare !== 'Gata').map(t => shown(t.sarcina)).slice(0, 2).join('; '), e.data <= addDaysIso(today, 3) ? 'var(--red)' : 'var(--amber)']); });
+  soon.filter(e => e.data <= addDaysIso(today, 7)).forEach(e => { const r = readiness(e); if (r.total && r.gata < r.total) { const st = readyState(e, r); if (st === 'bad') issues.push([e, (r.late ? 'Sarcină critică întârziată' : 'Nepregătit, e mâine') + ' (' + r.gata + '/' + r.total + '): ' + r.list.filter(t => t.stare !== 'Gata').map(t => shown(t.sarcina)).slice(0, 2).join('; '), 'var(--red)']); } });
   soon.filter(e => (e.montaj || e.demontaj) && (!e.deschide || !e.inchide)).forEach(e => issues.push([e, 'Lipsește omul de la ' + (!e.deschide ? 'montaj' : 'demontaj'), 'var(--rust)']));
   soon.filter(e => !e.sfarsit).forEach(e => issues.push([e, 'Fără oră de final', 'var(--amber)']));
   soon.filter(e => !e.responsabil).forEach(e => issues.push([e, 'Fără responsabil', 'var(--rust)']));
@@ -694,6 +716,7 @@ function renderHome() {
   $('view').innerHTML = h;
   $('view').querySelectorAll('[data-go]').forEach(b => b.onclick = () => setView(b.dataset.go));
   $('hBrief').onclick = () => openBrief(today);
+  $('hProg').onclick = () => openProgram(today.slice(0, 7));
   $('view').querySelectorAll('.rowev, .todo[data-id]').forEach(r => r.onclick = () => openDetail(r.dataset.id));
   bindTaskChecks($('view'), renderHome);
 }
@@ -770,7 +793,7 @@ function openBrief(day) {
     <div class="bnav noprint"><button class="navbtn" id="bPrev">&#8249; ziua dinainte</button><button class="navbtn" id="bNext">ziua următoare &#8250;</button><button class="navbtn" id="bPrint" style="padding:0 12px">Tipărește</button><button class="navbtn" id="bClose" style="padding:0 12px">Închide</button></div>`;
   if (!evs.length) h += '<div class="empty">Nimic programat în această zi.</div>';
   else {
-    if (nepreg.length) h += `<div class="conf" style="border-left-color:var(--red)"><b style="color:var(--red)">Nu sunt gata pentru public:</b> ${nepreg.map(([e, r]) => esc(shown(e.titlu)) + ' (' + r.gata + '/' + r.total + ')').join(', ')}</div>`;
+    if (nepreg.length) h += `<div class="conf" style="border-left-color:var(--red)"><b style="color:var(--red)">Încă nepregătite operațional:</b> ${nepreg.map(([e, r]) => esc(shown(e.titlu)) + ' (' + r.gata + '/' + r.total + ')').join(', ')}</div>`;
     h += `<div class="sec" style="border:0;margin-top:6px;padding-top:0"><h4>Orarul zilei</h4><table>` + mom.map(([t, e, what, who]) =>
       `<tr><td class="t">${esc(t || '—')}</td><td><span class="dot" style="background:${esc(colorOf(e.spatiu))}"></span><b>${esc(what)}</b><br><span class="hint">${esc(shown(e.titlu))} · ${esc(e.spatiu)}</span></td><td class="w">${esc(who)}</td></tr>`).join('') + `</table></div>`;
     h += `<div class="sec"><h4>Oamenii zilei</h4><div class="ppl">` + Object.entries(ppl).map(([n, l]) => `<div>${esc(n)}</div><div>${l.map(esc).join('<br>')}</div>`).join('') + `</div></div>`;
@@ -786,6 +809,71 @@ function openBrief(day) {
   $('bNext').onclick = () => openBrief(addDaysIso(day, 1));
   $('bPrint').onclick = () => window.print();
   $('bClose').onclick = closeSheet;
+}
+
+/* ---------- program public și calendar editorial ---------- */
+function ymAdd(ym, n) { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function publicEvents(ym) {
+  return S.data.events.filter(e => e.data.slice(0, 7) === ym && e.status !== 'Anulat' && !isBlock(e) && vizOf(e) === 'Public')
+    .sort((a, b) => (a.data + (a.acces || a.start || '')).localeCompare(b.data + (b.acces || b.start || '')));
+}
+function programText(list) {
+  return list.map(e => {
+    const d = parseIso(e.data);
+    const ora = e.acces ? 'acces ' + e.acces + ', începe ' + e.start : e.start;
+    return [RO_ZILE[d.getDay()] + ' ' + d.getDate() + ' ' + RO_LUNI[d.getMonth()] + ', ' + ora + ' · ' + e.spatiu,
+      pubTitle(e), shown(e.descrierePublic), shown(e.bilLink) && 'Bilete: ' + shown(e.bilLink)].filter(Boolean).join('\n');
+  }).join('\n\n');
+}
+function programCsv(list) {
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const head = ['Data', 'Ora acces', 'Ora început', 'Ora sfârșit', 'Spațiu', 'Tip', 'Titlu public', 'Descriere', 'Afiș', 'Bilete', 'Status', 'Aprobat'];
+  return '﻿' + [head].concat(list.map(e => [e.data, e.acces, e.start, e.sfarsit, e.spatiu, e.tip, pubTitle(e), shown(e.descrierePublic), shown(e.afis), shown(e.bilLink), e.status, e.aprobatPublicare === 'DA' ? 'DA' : 'nu'])).map(r => r.map(q).join(';')).join('\r\n');
+}
+function openProgram(ym, tab) {
+  tab = tab || 'program';
+  const [y, m] = ym.split('-').map(Number), lbl = RO_LUNI[m - 1] + ' ' + y;
+  const all = publicEvents(ym), ok = all.filter(e => e.aprobatPublicare === 'DA');
+  let h = `<h3>Program public · ${esc(lbl)}</h3>
+    <div class="bnav"><button class="navbtn" id="pPrev">&#8249; luna dinainte</button><button class="navbtn" id="pNext">luna următoare &#8250;</button>
+    <button class="navbtn ${tab === 'program' ? 'on' : ''}" id="pTabP" style="padding:0 12px">Program</button><button class="navbtn ${tab === 'com' ? 'on' : ''}" id="pTabC" style="padding:0 12px">Calendar editorial</button>
+    <button class="navbtn" id="pClose" style="padding:0 12px">Închide</button></div>`;
+  if (tab === 'program') {
+    h += `<p class="hint" style="margin-top:0">Aceeași sursă pentru site, ziarul-meniu și ecrane. Copierea și exportul iau doar evenimentele aprobate pentru publicare (${ok.length} din ${all.length}).</p>`;
+    h += all.length ? all.map(e => {
+      const lips = [!shown(e.descrierePublic) && 'descriere', !shown(e.afis) && 'afiș', modsOf(e).includes('bilete') && !shown(e.bilLink) && 'link bilete'].filter(Boolean);
+      return `<div class="prow" data-id="${esc(e.id)}" style="border-left-color:${esc(colorOf(e.spatiu))}">
+        <b>${esc(shortDay(e.data))} · ${esc(e.acces ? 'acces ' + e.acces + ', ' : '')}${esc(e.start)}</b> · ${esc(e.spatiu)}
+        ${e.aprobatPublicare === 'DA' ? '<span class="ready ok">Aprobat</span>' : '<span class="ready part">De aprobat</span>'}${e.status === 'Opțiune' ? '<span class="ready bad">încă opțiune</span>' : ''}
+        <div class="t">${esc(pubTitle(e))}</div>${lips.length ? `<div class="hint">Lipsește: ${lips.join(', ')}</div>` : ''}</div>`;
+    }).join('') : '<div class="empty">Niciun eveniment public în această lună.</div>';
+    h += `<div class="actions"><button class="btn pri" id="pCopy" ${ok.length ? '' : 'disabled'}>Copiază textul</button><button class="btn sec" id="pCsv" ${ok.length ? '' : 'disabled'}>Descarcă tabel (CSV)</button></div>`;
+  } else {
+    const ids = new Set(S.data.events.filter(e => e.status !== 'Anulat').map(e => e.id));
+    const ts = (S.data.tasks || []).filter(t => t.modul === 'comunicare' && ids.has(t.eventId) && t.stare !== 'Anulată' && t.termen && t.termen.slice(0, 7) === ym)
+      .sort((a, b) => a.termen.localeCompare(b.termen));
+    h += `<p class="hint" style="margin-top:0">Sarcinile de comunicare și promovare din ${esc(lbl)}, pe zile: anunțuri, afișe, postări, newsletter.</p>`;
+    const byDay = {}; ts.forEach(t => (byDay[t.termen] = byDay[t.termen] || []).push(t));
+    h += Object.keys(byDay).length ? Object.entries(byDay).map(([d, l]) => `<h5 style="margin:14px 0 4px">${esc(shortDay(d))}${d === S.data.now ? ' · azi' : ''}</h5>` + l.map(t => taskHtml(t, true)).join('')).join('')
+      : '<div class="empty">Nicio sarcină de comunicare în această lună. Bifează „Comunicare și promovare” la evenimente.</div>';
+  }
+  openSheet(h, true);
+  $('pPrev').onclick = () => openProgram(ymAdd(ym, -1), tab);
+  $('pNext').onclick = () => openProgram(ymAdd(ym, 1), tab);
+  $('pTabP').onclick = () => openProgram(ym, 'program');
+  $('pTabC').onclick = () => openProgram(ym, 'com');
+  $('pClose').onclick = closeSheet;
+  $('sheet').querySelectorAll('.prow[data-id]').forEach(r => r.onclick = () => openDetail(r.dataset.id));
+  $('sheet').querySelectorAll('[data-open]').forEach(a => a.onclick = ev => { ev.preventDefault(); openDetail(a.dataset.open); });
+  if (tab === 'program' && ok.length) {
+    $('pCopy').onclick = () => copyText(programText(ok), 'Programul din ' + lbl + ' e copiat');
+    $('pCsv').onclick = () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([programCsv(ok)], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'Program Republica ' + ym + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+    };
+  }
+  bindTaskChecks($('sheet'), () => openProgram(ym, tab));
 }
 
 function setView(v) { S.view = v; render(); window.scrollTo({ top: 0 }); }
@@ -805,8 +893,14 @@ const FIELDS = [
   ['spectatoriReali','Spectatori reali'],['consumBar','Consum bar realizat (lei)'],['feedback','Feedback client'],
   ['montaj','Montaj de la'],['demontaj','Demontaj până la'],['deschide','Deschide la montaj'],['inchide','Închide după demontaj'],
   ['echipOrg','Vin cu echipamentul lor'],['configurare','Configurare sală'],['contactTehnic','Contact tehnic organizator'],
-  ['montajData','Montaj din ziua'],['proba','Probă de sunet'],['acces','Acces public de la']
+  ['montajData','Montaj din ziua'],['proba','Probă de sunet'],['acces','Acces public de la'],
+  ['vizibil','Vizibil'],['titluPublic','Titlu public'],['descrierePublic','Descriere scurtă'],['afis','Afiș (link)'],['aprobatPublicare','Aprobat pentru publicare']
 ];
+const PUBLIC_KEYS = ['vizibil','titluPublic','descrierePublic','afis','aprobatPublicare'];
+const TIPURI_PRIVATE = ['Închiriere sală','Închiriază un film','Intern'];
+function defVizibil(tip) { return TIPURI_PRIVATE.includes(tip || '') || /^Blocaj/i.test(tip || '') ? 'Privat' : 'Public'; }
+function vizOf(e) { return e.vizibil === 'Public' || e.vizibil === 'Privat' ? e.vizibil : defVizibil(e.tip); }
+function pubTitle(e) { return shown(e.titluPublic) || shown(e.titlu); }
 const MONTAJ_KEYS = ['montaj','demontaj','deschide','inchide','echipOrg','configurare','contactTehnic','montajData','proba','acces'];
 function dayN(d) { const p = String(d || '').split('-').map(Number); return p.length === 3 ? Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5) : 0; }
 function durMin(m) { m = Math.round(m); if (m <= 0) return ''; const h = Math.floor(m / 60), mi = m % 60; return [h && h + ' h', mi && mi + ' min'].filter(Boolean).join(' '); }
@@ -850,14 +944,22 @@ function isBlock(e) { return /^Blocaj/i.test(e.tip || ''); }
 function readiness(e) {
   const crit = new Set((S.data.templates || []).filter(t => t.critica).map(t => t.cod));
   const ts = tasksOf(e.id).filter(t => crit.has(t.sablon) && t.stare !== 'Anulată');
-  return { total: ts.length, gata: ts.filter(t => t.stare === 'Gata').length, list: ts };
+  const late = ts.filter(t => t.stare !== 'Gata' && t.termen && t.termen < S.data.now).length;
+  return { total: ts.length, gata: ts.filter(t => t.stare === 'Gata').length, late: late, list: ts };
+}
+/* ok = pregătit operațional; part = în pregătire, nimic întârziat; bad = o sarcină critică a trecut de termen sau evenimentul e mâine */
+function readyState(e, r) {
+  r = r || readiness(e);
+  if (!r.total) return '';
+  if (r.gata === r.total) return 'ok';
+  return r.late || e.data <= addDaysIso(S.data.now, 1) ? 'bad' : 'part';
 }
 function readyBadge(e) {
   if (e._montaj || e.status === 'Anulat' || isBlock(e)) return '';
   const r = readiness(e); if (!r.total) return '';
-  const soon = e.data <= addDaysIso(S.data.now, 3);
-  const cls = r.gata === r.total ? 'ok' : soon ? 'bad' : 'part';
-  return `<span class="ready ${cls}" title="Sarcini critice gata">${r.gata === r.total ? 'Gata pentru public' : 'Pregătit ' + r.gata + '/' + r.total}</span>`;
+  const cls = readyState(e, r);
+  const txt = cls === 'ok' ? 'Pregătit' : cls === 'bad' && r.late ? 'Întârziat ' + r.gata + '/' + r.total : 'În pregătire ' + r.gata + '/' + r.total;
+  return `<span class="ready ${cls}" title="Verificări critice: ${r.gata} din ${r.total} gata${r.late ? ', ' + r.late + ' trecute de termen' : ''}">${txt}</span>`;
 }
 function modsOf(e) { return String(e.module || '').split(',').map(x => x.trim()).filter(Boolean); }
 function modName(c) { const m = (S.data.modules || []).find(x => x.cod === c); return m ? m.nume : c; }
@@ -869,7 +971,7 @@ function mergeById(arr, items) { (items || []).forEach(it => { const i = arr.fin
 function openDetail(id) {
   const e = S.data.events.find(x => x.id === id);
   if (!e) return;
-  const rows = FIELDS.filter(([k]) => !MONTAJ_KEYS.includes(k) && e[k] !== '' && e[k] != null).map(([k, l]) => {
+  const rows = FIELDS.filter(([k]) => !MONTAJ_KEYS.includes(k) && !PUBLIC_KEYS.includes(k) && e[k] !== '' && e[k] != null).map(([k, l]) => {
     let v = (k === 'data' || k === 'optiunePana') ? longDate(e[k]) : shown(e[k]);
     if (MONEY.includes(k)) v = lei(e[k]);
     return `<div>${esc(l)}</div><div>${esc(v)}</div>`;
@@ -880,11 +982,13 @@ function openDetail(id) {
     <div class="actions">
       <button class="btn pri" id="dEdit">Editează</button>
       <button class="btn sec" id="dDup">Duplică</button>
+      <button class="btn sec" id="dLink">Copiază linkul</button>
       <button class="btn warn" id="dArch">Arhivează</button>
       <button class="btn sec" id="dClose">Închide</button>
     </div>`);
   $('dEdit').onclick = () => openForm(e);
-  $('dDup').onclick = () => { const c = Object.assign({}, e); delete c.id; c.status = 'Opțiune'; c.optiunePana = ''; ['spectatoriReali','consumBar','feedback','bilVandute'].forEach(k => c[k] = ''); openForm(null, c); };
+  $('dLink').onclick = () => copyText(eventLink(e.id), 'Linkul fișei e copiat. Îl poți trimite pe WhatsApp sau email.');
+  $('dDup').onclick = () => { const c = Object.assign({}, e); delete c.id; c.status = 'Opțiune'; c.optiunePana = ''; ['spectatoriReali','consumBar','feedback','bilVandute','aprobatPublicare'].forEach(k => c[k] = ''); openForm(null, c); };
   $('dArch').onclick = () => {
     if (!confirm('Arhivezi „' + shown(e.titlu) + '”? Dispare din calendar, dar rămâne în Sheet.')) return;
     call('archiveEvent', [e.id, e.modificatLa], r => {
@@ -906,9 +1010,10 @@ function dossierHtml(e) {
   const rider = riderOf(e.id);
   let h = '';
   h += montajHtml(e);
+  h += publicHtml(e);
   const rd = readiness(e);
-  if (rd.total && !isBlock(e)) h += `<div class="sec"><h4>Gata pentru public <small>${rd.gata} din ${rd.total} verificări critice</small></h4>` +
-    rd.list.map(t => `<div class="chk ${t.stare === 'Gata' ? 'ok' : 'no'}"><i>${t.stare === 'Gata' ? '✓' : '✗'}</i><span>${esc(shown(t.sarcina))}${t.stare !== 'Gata' ? ' · ' + esc(t.responsabil || 'fără responsabil') : ''}</span></div>`).join('') +
+  if (rd.total && !isBlock(e)) h += `<div class="sec"><h4>Pregătire operațională <small>${rd.gata} din ${rd.total} verificări critice${rd.late ? ' · ' + rd.late + ' întârziate' : ''}</small></h4>` +
+    rd.list.map(t => { const late = t.stare !== 'Gata' && t.termen && t.termen < S.data.now; return `<div class="chk ${t.stare === 'Gata' ? 'ok' : late ? 'no' : 'wait'}"><i>${t.stare === 'Gata' ? '✓' : late ? '!' : '·'}</i><span>${esc(shown(t.sarcina))}${t.stare !== 'Gata' ? ' · ' + esc(t.responsabil || 'fără responsabil') + (t.termen ? ' · ' + (late ? 'întârziată, termen ' : 'termen ') + esc(shortDay(t.termen)) : '') : ''}</span></div>`; }).join('') +
     (rd.gata < rd.total ? '<div class="hint">Evenimentul nu e gata pentru accesul publicului până nu sunt bifate toate.</div>' : '') + `</div>`;
   h += `<div class="sec"><h4>Necesar logistic <small><a href="#" id="modsEdit">modifică</a></small></h4><div class="mods" id="modsView" style="cursor:pointer">${mods.map(c => `<span class="mod on">${esc(modName(c))}</span>`).join('') || '<span class="mod">Nimic bifat. Apasă ca să alegi.</span>'}</div></div>`;
   h += `<div class="sec"><h4>Sarcini <small>${done} din ${tasks.length} gata</small></h4>`;
@@ -926,6 +1031,20 @@ function dossierHtml(e) {
   }
   h += resultHtml(e);
   return h;
+}
+
+function publicHtml(e) {
+  if (isBlock(e) || e.status === 'Anulat') return '';
+  const v = vizOf(e);
+  if (v === 'Privat') return `<div class="sec"><h4>Program public</h4><div class="hint">Privat. Nu apare pe site, în ziar-meniu sau pe ecrane.</div></div>`;
+  const lips = [!shown(e.descrierePublic) && 'descrierea', !shown(e.afis) && 'afișul', modsOf(e).includes('bilete') && !shown(e.bilLink) && 'linkul de bilete'].filter(Boolean);
+  const st = e.aprobatPublicare === 'DA' ? '<span class="ready ok">Aprobat pentru publicare</span>' : '<span class="ready part">De aprobat</span>';
+  return `<div class="sec"><h4>Program public ${st}</h4><div class="kv">
+    <div>Titlu public</div><div>${esc(pubTitle(e))}</div>
+    ${shown(e.descrierePublic) ? `<div>Descriere</div><div>${esc(shown(e.descrierePublic))}</div>` : ''}
+    ${shown(e.afis) ? `<div>Afiș</div><div><a href="${esc(shown(e.afis))}" target="_blank" rel="noopener">deschide</a></div>` : ''}
+    ${shown(e.bilLink) ? `<div>Bilete</div><div><a href="${esc(shown(e.bilLink))}" target="_blank" rel="noopener">link</a></div>` : ''}
+  </div>${lips.length ? `<div class="hint">Mai lipsește ${lips.join(', ')}.</div>` : ''}</div>`;
 }
 
 function resultHtml(e) {
@@ -1095,6 +1214,18 @@ function openForm(e, prefill) {
       <div class="row2"><div><label>Bilete: link</label><input id="f_bilLink" value="${f('bilLink')}"></div>
       <div><label>Bilete vândute</label><input id="f_bilVandute" inputmode="numeric" value="${f('bilVandute')}"></div></div></div>
     <label>Note</label><textarea id="f_note">${f('note')}</textarea>
+    <details id="pubDet" ${v.titluPublic || v.descrierePublic || v.afis || v.aprobatPublicare ? 'open' : ''}><summary>Program public (site, ziar-meniu, ecrane)</summary>
+      <div class="row2">
+        <div><label>Vizibil</label><select id="f_vizibil">${opts(['Public','Privat'], v.vizibil || defVizibil(v.tip))}</select></div>
+        <div id="aprBox"><label>Aprobat pentru publicare</label><select id="f_aprobatPublicare"><option value="">Nu încă</option><option value="DA" ${v.aprobatPublicare === 'DA' ? 'selected' : ''}>Da, poate fi publicat</option></select></div>
+      </div>
+      <div id="pubBox">
+        <label>Titlu public (dacă diferă de titlul intern)</label><input id="f_titluPublic" value="${f('titluPublic')}" placeholder="cum apare pe site și pe afiș">
+        <label>Descriere scurtă (2–3 rânduri)</label><textarea id="f_descrierePublic" rows="3">${f('descrierePublic')}</textarea>
+        <label>Afiș (link Drive sau imagine)</label><input id="f_afis" value="${f('afis')}" placeholder="https://…">
+        <div class="hint">Dacă modifici titlul, data, ora, spațiul, descrierea, afișul sau linkul de bilete după aprobare, aprobarea se anulează și trebuie dată din nou.</div>
+      </div>
+    </details>
     <details ${hasLog ? 'open' : ''}><summary>Client, bani și logistică</summary>
       <label>Client / partener</label><input id="f_client" value="${f('client')}">
       <label>Contact (nume, telefon, email)</label><input id="f_contact" value="${f('contact')}">
@@ -1130,6 +1261,14 @@ function openForm(e, prefill) {
   $('fSave').onclick = () => submit(e, false);
   bindOptBox();
   bindMods(isNew, v);
+  bindPublic(isNew, v);
+}
+function bindPublic(isNew, v) {
+  let manual = !!v.vizibil;
+  const sync = () => { const pub = $('f_vizibil').value === 'Public'; $('pubBox').style.display = pub ? '' : 'none'; $('aprBox').style.visibility = pub ? '' : 'hidden'; };
+  $('f_vizibil').onchange = () => { manual = true; sync(); };
+  $('f_tip').addEventListener('change', () => { if (!manual) { $('f_vizibil').value = defVizibil($('f_tip').value); sync(); } });
+  sync();
 }
 function bindMods(isNew, v) {
   const L = S.data.lists, box = $('modsBox');
@@ -1183,6 +1322,7 @@ function readForm(e) {
   o.titlu = $('f_titlu').value;
   if ($('modsBox')) o.module = Array.from($('modsBox').querySelectorAll('input:checked')).map(i => i.value).join(',');
   if (o.status !== 'Opțiune') o.optiunePana = '';
+  if (o.vizibil === 'Privat') o.aprobatPublicare = '';
   return o;
 }
 
@@ -1214,10 +1354,10 @@ function submit(e, force) {
 
 function showConflicts(list, e) {
   const saved = submit._last.input;
-  const html = list.map(c => `<div class="conf"><b>${esc(shortDate(c.data))} · ${esc(timeRange(c))}</b> · ${esc(c.spatiu)}<br>${esc(shown(c.titlu))} ${statusBadge(c)}${c.responsabil ? ' · ' + esc(c.responsabil) : ''}${c.motiv ? `<br><b style="color:var(--rust)">Om dublat: ${esc(c.motiv)}</b>` : ''}</div>`).join('');
+  const html = list.map(c => `<div class="conf"><b>${esc(shortDate(c.data))} · ${esc(timeRange(c))}</b> · ${esc(c.spatiu)}<br>${esc(shown(c.titlu))} ${statusBadge(c)}${c.responsabil ? ' · ' + esc(c.responsabil) : ''}${c.motiv ? `<br><b style="color:var(--rust)">Om dublat: ${esc(c.motiv)}</b>` : ''}${c.pauza ? `<br><b style="color:var(--amber)">${esc(c.pauza)}</b>` : ''}</div>`).join('');
   const back = $('sheet').innerHTML;
   openSheet(`<h3>Se suprapune cu ${list.length === 1 ? 'un eveniment' : list.length + ' evenimente'}</h3>
-    <p style="margin-top:0;color:var(--muted)">În același spațiu și interval (inclusiv montaj și demontaj), sau același om de la noi prins în două locuri:</p>${html}
+    <p style="margin-top:0;color:var(--muted)">În același spațiu și interval (inclusiv montaj, demontaj și pauza de pregătire dintre evenimente), sau același om de la noi prins în două locuri:</p>${html}
     <div class="actions"><button class="btn sec" id="cBack">Înapoi la formular</button><button class="btn pri" id="cForce">Salvează oricum</button></div>`);
   $('cBack').onclick = () => { restoreForm(back, saved, e); };
   $('cForce').onclick = () => { restoreForm(back, saved, e); submit(e, true); };
@@ -1329,6 +1469,8 @@ $('btnOut').onclick = () => { if (confirm('Ieși din cont pe acest dispozitiv?')
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
 
 (function boot() {
+  const m = /^#e=([^&]+)/.exec(location.hash || '');
+  if (m) { try { sessionStorage.setItem('rcal.open', decodeURIComponent(m[1])); } catch (_) {} history.replaceState(null, '', location.pathname + location.search); }
   const r = consumeRedirect();
   TOKEN = (r && r.token) || savedToken();
   if (!TOKEN) {

@@ -33,7 +33,8 @@ const COLS = ['id', 'titlu', 'tip', 'spatiu', 'data', 'start', 'sfarsit', 'monta
   'status', 'responsabil', 'client', 'contact', 'participanti', 'valoare', 'avans',
   'tehnic', 'bar', 'note', 'creatDe', 'creatLa', 'modificatDe', 'modificatLa', 'arhivat', 'optiunePana',
   'module', 'barInterval', 'pachetBar', 'bilPlatforma', 'bilLink', 'capacitate', 'bilVandute', 'spectatoriReali', 'consumBar', 'feedback',
-  'deschide', 'inchide', 'echipOrg', 'configurare', 'contactTehnic', 'acces', 'proba', 'montajData'];
+  'deschide', 'inchide', 'echipOrg', 'configurare', 'contactTehnic', 'acces', 'proba', 'montajData',
+  'titluPublic', 'descrierePublic', 'afis', 'vizibil', 'aprobatPublicare'];
 
 const LABELS = {
   titlu: 'Titlu', tip: 'Tip', spatiu: 'Spațiu', data: 'Data', start: 'Ora început',
@@ -47,7 +48,8 @@ const LABELS = {
   consumBar: 'Consum bar realizat (lei)', feedback: 'Feedback client',
   deschide: 'Deschide la montaj', inchide: 'Închide după demontaj', echipOrg: 'Vin cu echipamentul lor',
   configurare: 'Configurare sală', contactTehnic: 'Contact tehnic organizator',
-  acces: 'Acces public de la', proba: 'Probă de sunet', montajData: 'Montaj din ziua'
+  acces: 'Acces public de la', proba: 'Probă de sunet', montajData: 'Montaj din ziua',
+  titluPublic: 'Titlu public', descrierePublic: 'Descriere scurtă', afis: 'Afiș (link)', vizibil: 'Vizibil', aprobatPublicare: 'Aprobat pentru publicare'
 };
 
 const EDITABLE = Object.keys(LABELS);
@@ -177,6 +179,11 @@ function saveEvent(input, opts) {
         return { ok: true, events: [same], unchanged: true };
       }
       const merged = Object.assign({}, cur, ev, { modificatDe: user, modificatLa: now });
+      // aprobarea pentru publicare cade dacă se schimbă ce vede publicul după ce a fost aprobat
+      if (cur.aprobatPublicare === 'DA' && merged.aprobatPublicare === 'DA' &&
+          ['titluPublic', 'titlu', 'descrierePublic', 'afis', 'data', 'start', 'spatiu', 'bilLink', 'status'].some(k => String(cur[k] || '') !== String(merged[k] || ''))) {
+        merged.aprobatPublicare = ''; changes.push('Aprobat pentru publicare: DA → — (s-a schimbat ce vede publicul)');
+      }
       writeRow_(sh, cur._row, merged);
       log_(user, 'Modificat', merged.id, merged.titlu, changes.join('; '));
       const tasks = syncTasks_([{ ev: merged, prev: cur }]);
@@ -332,7 +339,8 @@ function readLists_() {
   return {
     spatii: spatii, tipuri: col(3), responsabili: col(5), statusuri: col(7),
     pragConcession: Number(set['Prag concession (spectatori)']) || 150,
-    spatiuConcession: set['Spațiu concession'] || 'Sala mare'
+    spatiuConcession: set['Spațiu concession'] || 'Sala mare',
+    pauza: set['Pauză între evenimente (min)'] === '' || set['Pauză între evenimente (min)'] == null ? 30 : (Number(set['Pauză între evenimente (min)']) || 0)
   };
 }
 
@@ -636,6 +644,8 @@ function clean_(input) {
   ev.montajData = normDate_(ev.montajData);
   if (ev.montajData && (ev.montajData >= ev.data || !ev.montaj)) ev.montajData = ''; // doar o zi anterioară, și doar cu oră
   ev.module = modsOf_(ev).join(',');
+  if (ev.vizibil !== 'Public' && ev.vizibil !== 'Privat') ev.vizibil = defaultVizibil_(ev.tip);
+  ev.aprobatPublicare = ev.vizibil === 'Public' && ev.aprobatPublicare === 'DA' ? 'DA' : '';
   return ev;
 }
 
@@ -745,9 +755,17 @@ function staffWindows_(e) {
   return out;
 }
 
+/** Ce apare implicit în programul public: tot, mai puțin închirierile, internele și blocajele. */
+const TIPURI_PRIVATE_ = ['Închiriere sală', 'Închiriază un film', 'Intern'];
+function defaultVizibil_(tip) { tip = String(tip || ''); return TIPURI_PRIVATE_.indexOf(tip) >= 0 || /^Blocaj/i.test(tip) ? 'Privat' : 'Public'; }
+
+let PAUZA_ = null;
+function pauza_() { if (PAUZA_ === null) { try { PAUZA_ = readLists_().pauza; } catch (e) { PAUZA_ = 0; } } return PAUZA_; }
+
 function findConflicts_(ev, all, excludeIds) {
   if (ev.status === STATUS_ANULAT) return [];
   const [s, f] = interval_(ev);
+  const B = pauza_();
   const mine = staffWindows_(ev);
   const people = mine.length ? all.filter(o =>
     excludeIds.indexOf(o.id) < 0 && o.arhivat !== 'DA' && o.status !== STATUS_ANULAT &&
@@ -763,11 +781,16 @@ function findConflicts_(ev, all, excludeIds) {
     o.status !== STATUS_ANULAT &&
     Math.abs(daysBetween_(o.data, ev.data)) <= 8 &&
     spacesClash_(o.spatiu, ev.spatiu) &&
-    (() => { const [os, of] = interval_(o); return os < f && s < of; })()
-  ).map(o => ({
-    id: o.id, titlu: o.titlu, data: o.data, start: o.start, sfarsit: o.sfarsit,
-    spatiu: o.spatiu, status: o.status, responsabil: o.responsabil, optiunePana: o.optiunePana
-  })).concat(people);
+    (() => { const [os, of] = interval_(o); return os < f + B && s < of + B; })()
+  ).map(o => {
+    const [os, of] = interval_(o);
+    const r = {
+      id: o.id, titlu: o.titlu, data: o.data, start: o.start, sfarsit: o.sfarsit,
+      spatiu: o.spatiu, status: o.status, responsabil: o.responsabil, optiunePana: o.optiunePana
+    };
+    if (!(os < f && s < of)) r.pauza = 'Între ele rămân mai puțin de ' + B + ' minute pentru curățenie și pregătire';
+    return r;
+  }).concat(people);
 }
 
 /* ---------- Repetare ---------- */
@@ -912,7 +935,7 @@ function sendDigests_(today, cancelled, onlyName, previewTo) {
       .map(e => ({ e: e, r: readiness_(e, allTasks, templates) })).filter(x => x.r.total && x.r.gata < x.r.total);
     if (!late.length && !now.length && !myEv.length && !opts.length && !lipsa.length && !anulate.length && !nepreg.length) return;
 
-    const evLine = e => `<b>${h_(e.titlu)}</b> · ${fmtZi_(e.data)}, ${h_(e.start)}${e.sfarsit ? '–' + h_(e.sfarsit) : ''} · ${h_(e.spatiu)}`;
+    const evLine = e => `<a href="${APP_URL}#e=${encodeURIComponent(e.id)}" style="color:#24382E"><b>${h_(e.titlu)}</b></a> · ${fmtZi_(e.data)}, ${h_(e.start)}${e.sfarsit ? '–' + h_(e.sfarsit) : ''} · ${h_(e.spatiu)}`;
     const taskLine = t => `${h_(t.sarcina)}<br><span style="color:#6B706C">${byId[t.eventId] ? evLine(byId[t.eventId]) : ''} · termen ${fmtZi_(t.termen)}</span>`;
     const sec = (title, items, color) => items.length ? `<h3 style="font:600 16px Georgia,serif;color:${color || '#24382E'};margin:22px 0 8px">${title}</h3><ul style="padding-left:18px;margin:0">${items.map(x => `<li style="margin:0 0 8px">${x}</li>`).join('')}</ul>` : '';
     let html = `<div style="font:14px/1.5 Arial,sans-serif;color:#1E2420;max-width:560px">`;
@@ -974,7 +997,7 @@ function notifyChange_(cur, nou) {
       <h3 style="font:600 17px Georgia,serif;color:${anulat ? '#CB2125' : '#24382E'};margin:10px 0 4px">${h_(titlu)}</h3>
       <p style="margin:0;color:#6B706C">${fmtZi_(nou.data)}, ${h_(nou.start)}${nou.sfarsit ? '–' + h_(nou.sfarsit) : ''} · ${h_(nou.spatiu)}</p>
       <ul style="padding-left:18px">${rows.join('')}</ul>
-      <p style="margin:20px 0 0"><a href="${APP_URL}" style="background:#24382E;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">Deschide calendarul</a></p></div>`;
+      <p style="margin:20px 0 0"><a href="${APP_URL}${arhivat ? '' : '#e=' + encodeURIComponent(nou.id)}" style="background:#24382E;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block">${arhivat ? 'Deschide calendarul' : 'Deschide fișa evenimentului'}</a></p></div>`;
     team.forEach(p => MailApp.sendEmail({ to: p.email, subject: subj, htmlBody: html, name: 'Calendar Republica | 1963' }));
     log_(me, 'Notificare trimisă', nou.id, titlu, team.map(p => p.name).join(', ') + ': ' + (arhivat ? 'arhivat' : diffs.map(k => LABELS[k]).join(', ')));
   } catch (err) {
@@ -1003,5 +1026,8 @@ function backup_(today) {
 function readiness_(ev, tasks, templates) {
   const crit = {}; templates.filter(t => t.critica).forEach(t => crit[t.cod] = 1);
   const ts = tasks.filter(t => t.eventId === ev.id && crit[t.sablon] && t.stare !== T_CANCEL);
-  return { total: ts.length, gata: ts.filter(t => t.stare === T_DONE).length, lipsa: ts.filter(t => t.stare !== T_DONE).map(t => t.sarcina) };
+  const today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const open = ts.filter(t => t.stare !== T_DONE);
+  return { total: ts.length, gata: ts.length - open.length, lipsa: open.map(t => t.sarcina + (t.termen && t.termen < today ? ' (întârziată)' : '')),
+    intarziate: open.filter(t => t.termen && t.termen < today).length };
 }
